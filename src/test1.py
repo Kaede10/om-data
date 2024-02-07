@@ -24,3 +24,11 @@ class ChatGLM:
         self.model = AutoModel.from_pretrained(self.base_model_path, config=self.config, trust_remote_code=True)
         self.model.half().cuda()
         self.model.eval()
+        
+        filtered_entries = [entry for entry in dictionary_list if entry.hour < 22]      
+        if filtered_entries:
+            max_hour_time = max(filtered_entries, key=lambda x: x.hour)
+        else:
+            max_hour_time = max(dictionary_list, key=lambda x: x.hour) 
+        filtered_entries = [entry for entry in dictionary_list if entry.hour == max_hour_time.hour]
+        return max(filtered_entries, key=lambda x: x.minute)
