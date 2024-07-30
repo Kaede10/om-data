@@ -1,0 +1,25 @@
+on: [push, pull_request]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Validate kustomization
+        uses: stefanprodan/kube-tools@master
+        with:
+          # https://github.com/fluxcd/flux/blob/master/docker/kubectl.version
+          kubectl: 1.14.7
+          # https://github.com/fluxcd/flux/blob/master/docker/kustomize.version
+          kustomize: 3.2.3
+          # https://github.com/fluxcd/helm-operator/blob/master/docker/helm.version
+          # helm: 2.14.3
+          command: |
+            #!/bin/bash
+            for file in `ls ./src`
+            do
+                if [ -d "./src/"$file ]; then
+                    echo "Validating om-data of $file"
+                    kustomize build  "./src/$file" | kubeval --strict --ignore-missing-schemas
+                fi
+            done
