@@ -16,10 +16,10 @@ jobs:
           # helm: 2.14.3
           command: |
             #!/bin/bash
-            for file in `ls ./applications`
+            for file in `ls ./src`
             do
                 if [ -d "./src/"$file ]; then
-                    echo "Validating applications of $file"
-                    kustomize build  "./applications/$file" | kubeval --strict --ignore-missing-schemas
+                    echo "Validating om-data of $file"
+                    kustomize build  "./src/$file" | kubeval --strict --ignore-missing-schemas
                 fi
             done
