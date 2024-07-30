@@ -18,7 +18,7 @@ jobs:
             #!/bin/bash
             for file in `ls ./src`
             do
-                echo \"Validating $file in src\"
+                echo "Validating $file in src"
                 if [ -d "./src/"$file ]; then
                     echo "Validating om-data of $file"
                     kustomize build  "./src/$file" | kubeval --strict --ignore-missing-schemas
