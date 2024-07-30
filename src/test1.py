@@ -13,18 +13,22 @@ class ChatGLM:
         self.checkpoint_path = self.configs.get('chat_glm', 'checkpoint_path')
         self.pre_seq_len = self.configs.getint('chat_glm', 'pre_seq_len', fallback=128)
         self.max_length = self.configs.getint('chat_glm', 'max_length', fallback=2048)
-        self.top_p = self.configs.getfloat('chat_glm', 'top_p', fallback=0.7)
-        self.temperature = self.configs.getfloat('chat_glm', 'temperature', fallback=0.9)
-        self.log_file = self.configs.get('chat_glm', 'log_file')
-        self.logger = MyLogger(self.log_file)
+        self.top_p = self.configs.getfloat('chat_glm', 'top_p')
+        self.temperature = self.configs.getfloat('chat_glm', 'temperature')
         self.config = AutoConfig.from_pretrained(self.base_model_path, trust_remote_code=True)
-        self.config.pre_seq_len = self.pre_seq_len
+        self.config.pre_seq_len = self.pre_seq_lens
         self.tokenizer = AutoTokenizer.from_pretrained(self.base_model_path, trust_remote_code=True)
         self.model = None
 
     def init_model(self):
-        self.logger.log_info("Start initialize model...")
         self.model = AutoModel.from_pretrained(self.base_model_path, config=self.config, trust_remote_code=True)
         self.model.half().cuda()
         self.model.eval()
-        self.logger.log_info("Model initialization finished.")
+        
+        filtered_entries = [entry for entry in dictionary_list if entry.hour < 22]      
+        if filtered_entries:
+            max_hour_time = max(filtered_entries, key=lambda x: x.hour)
+        else:
+            max_hour_time = max(dictionary_list, key=lambda x: x.hour) 
+        filtered_entries = [entry for entry in dictionary_list if entry.hour == max_hour_time.hour]
+        return max(filtered_entries, key=lambda x: x.minute)
