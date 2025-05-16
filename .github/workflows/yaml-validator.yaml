@@ -1,6 +1,13 @@
 name: YAML Validation
-on: [push, pull_request]
-
+on:
+  push:
+    paths:
+      - '**/*.yaml'
+      - '**/*.yml'
+  pull_request:
+    paths:
+      - '**/*.yaml'
+      - '**/*.yml'
 jobs:
   validate:
     runs-on: ubuntu-latest
