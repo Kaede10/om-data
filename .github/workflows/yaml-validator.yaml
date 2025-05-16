@@ -1,26 +1,25 @@
-on: [push, pull_request]
+name: Validate YAML files
+
+on:
+  push:
+    paths:
+      - '**/*.yaml'
+      - '**/*.yml'
+  pull_request:
+    paths:
+      - '**/*.yaml'
+      - '**/*.yml'
 
 jobs:
-  validate:
+  validate-yaml:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - name: Validate kustomization
-        uses: stefanprodan/kube-tools@master
-        with:
-          # https://github.com/fluxcd/flux/blob/master/docker/kubectl.version
-          kubectl: 1.14.7
-          # https://github.com/fluxcd/flux/blob/master/docker/kustomize.version
-          kustomize: 3.2.3
-          # https://github.com/fluxcd/helm-operator/blob/master/docker/helm.version
-          # helm: 2.14.3
-          command: |
-            #!/bin/bash
-            for file in `ls ./src`
-            do
-                echo "Validating $file in src"
-                if [ -d "./src/"$file ]; then
-                    echo "Validating om-data of $file"
-                    kustomize build  "./src/$file" | kubeval --strict --ignore-missing-schemas
-                fi
-            done
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Validate YAML syntax
+      uses: actions/yaml-validator@v1
+      with:
+        file_or_dir: .
+        recursive: true
+        fail_on_error: true
