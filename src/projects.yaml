@@ -1,0 +1,31 @@
+owner_items:
+  - owner: sermant
+    items:
+      - github.com/huaweicloud/Sermant
+  - owner: tinyvue
+    items:
+      - github.com/opentiny/tiny-vue1
+      - github.com/opentiny/tiny-vue
+  - owner: HW-PLLab
+    items:
+      - gitee.com/HW-PLLab
+  - owner: openlookeng
+    items:
+      - gitee.com/openlookeng
+  - owner: karmada
+    items:
+      - github.com/karmada-io
+  - owner: liteos
+    items:
+      - github.com/liteos
+      - gitee.com/liteos
+  - owner: edgegallery
+    items:
+      - github.com/EdgeGallery
+      - gitee.com/edgegallery
+  - owner: openFuyao
+    items:
+      - gitcode.com/openFuyao
+  - owner: open-ebackup
+    items:
+      - gitcode.com/eBackup
