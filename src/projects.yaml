@@ -1,31 +1,66 @@
-owner_items:
-  - owner: sermant
+projects:
+  - project: openGauss
     items:
-      - github.com/huaweicloud/Sermant
-  - owner: tinyvue
+      - gitcode.com/opengauss
+  - project: Cantian
     items:
-      - github.com/opentiny/tiny-vue1
-      - github.com/opentiny/tiny-vue
-  - owner: HW-PLLab
-    items:
-      - gitee.com/HW-PLLab
-  - owner: openlookeng
-    items:
-      - gitee.com/openlookeng
-  - owner: karmada
-    items:
-      - github.com/karmada-io
-  - owner: liteos
-    items:
-      - github.com/liteos
-      - gitee.com/liteos
-  - owner: edgegallery
-    items:
-      - github.com/EdgeGallery
-      - gitee.com/edgegallery
-  - owner: openFuyao
+      - gitee.com/openeuler/cantian
+      - gitee.com/openeuler/cantian-connector-mysql
+      - gitcode.com/Cantian
+  - project: openFuyao
     items:
       - gitcode.com/openFuyao
-  - owner: open-ebackup
+  - project: openLooKeng
+    items:
+      - gitcode.com/openlookeng
+  - project: A-Tune
+    items:
+      - gitee.com/openeuler/A-Tune
+  - project: iSulad
+    items:
+      - gitee.com/openeuler/iSulad
+  - project: Kmesh
+    items:
+      - github.com/kmesh-net/kmesh
+  - project: Kuasar
+    items:
+      - github.com/kuasar-io/kuasar
+  - project: Kurator
+    items:
+      - github.com/kurator-dev/kurator
+  - project: Kappital
+    items:
+      - github.com/kappital/kappital
+  - project: Oniro
+    items:
+      - github.com/eclipse-oniro4openharmony
+  - project: open-ebackup
     items:
       - gitcode.com/eBackup
+  - project: StratoVirt
+    items:
+      - gitee.com/openeuler/stratovirt
+  - project: ModelEngine
+    items:
+      - gitcode.com/ModelEngine
+  - project: xuanwu
+    items:
+      - gitcode.com/xuanwu
+  - project: cangjie
+    items:
+      - gitcode.com/Cangjie
+  - project: openInula
+    items:
+      - gitcode.com/openInula
+  - project: openHiTLS
+    items:
+      - gitcode.com/openHiTLS
+  - project: Sermant
+    items:
+      - gitcode.com/huaweicloud/Sermant
+  - project: DevUI
+    items:
+      - gitcode.com/DevCloudFE/vue-devui
+  - project: OpenTiny
+    items:
+      - gitcode.com/opentiny
