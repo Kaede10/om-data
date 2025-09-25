@@ -1,0 +1,213 @@
+metric_groups:
+  - dest_table: "dws_{community}_service_time_{period}"
+    service: service_visit_time
+    communities:
+      - openubmc
+      - openeuler
+    cal_time_config:
+      periods:
+        - day
+        - week
+        - month
+      scope:
+        strategy: config_period
+      series:
+        completion: "true"
+        fill_value: "0"
+      save_date: "true"
+    dims:
+      - col: service
+    metrics:
+      - name: visit_time
+        type: derivative
+        value_type: bigint
+        desc: 服务访问时间
+        source_table: "dws_{community}_service_visit_time"
+        expression: sum(pv_count)
+        conditions: ""
+        time_field: date
+  - dest_table: "dws_{community}_service_time_{period}"
+    service: service_visit_time
+    communities:
+      - openubmc
+      - openeuler
+    cal_time_config:
+      periods:
+        - day
+        - week
+        - month
+      scope:
+        strategy: config_period
+      series:
+        completion: "true"
+        fill_value: "0"
+      save_date: "true"
+    dims:
+      - col: service
+    metrics:
+      - name: previous_visit_time
+        type: compound_m
+        value_type: bigint
+        desc: 服务访问时间-上个周期
+        source_table: "{dest_table}"
+        expression: LAG(visit_time) OVER (PARTITION BY service ORDER BY date)
+        conditions: ""
+        time_field: date
+  - dest_table: "dws_{community}_service_time_{period}"
+    service: service_stay_time
+    communities:
+      - openubmc
+      - openeuler
+    cal_time_config:
+      periods:
+        - day
+        - week
+        - month
+      scope:
+        strategy: config_period
+      series:
+        completion: "true"
+        fill_value: "0"
+      save_date: "true"
+    dims:
+      - col: service
+    metrics:
+      - name: stay_time
+        type: derivative
+        value_type: bigint
+        desc: 服务停留时间
+        source_table: "dws_{community}_service_stay_time"
+        expression: sum(stay_time)
+        conditions: ""
+        time_field: date
+  - dest_table: "dws_{community}_service_time_{period}"
+    service: service_stay_time
+    communities:
+      - openubmc
+      - openeuler
+    cal_time_config:
+      periods:
+        - day
+        - week
+        - month
+      scope:
+        strategy: config_period
+      series:
+        completion: "true"
+        fill_value: "0"
+      save_date: "true"
+    dims:
+      - col: service
+    metrics:
+      - name: previous_stay_time
+        type: compound_m
+        value_type: bigint
+        desc: 服务停留时间-上个周期
+        source_table: "{dest_table}"
+        expression: LAG(stay_time) OVER (PARTITION BY service ORDER BY date)
+        conditions: ""
+        time_field: date
+  - dest_table: "dws_{community}_module_time_{period}"
+    service: module_visit_time
+    communities:
+      - openubmc
+      - openeuler
+    cal_time_config:
+      periods:
+        - day
+      scope:
+        strategy: config_period
+      series:
+        completion: "true"
+        fill_value: "0"
+      save_date: "true"
+    dims:
+      - col: service
+      - col: module
+    metrics:
+      - name: visit_time
+        type: derivative
+        value_type: bigint
+        desc: 模块访问时间
+        source_table: "dws_{community}_service_visit_time"
+        expression: sum(pv_count)
+        conditions: ""
+        time_field: date
+  - dest_table: "dws_{community}_module_time_{period}"
+    service: module_visit_time
+    communities:
+      - openubmc
+      - openeuler
+    cal_time_config:
+      periods:
+        - day
+      scope:
+        strategy: config_period
+      series:
+        completion: "true"
+        fill_value: "0"
+      save_date: "true"
+    dims:
+      - col: service
+      - col: module
+    metrics:
+      - name: previous_visit_time
+        type: compound_m
+        value_type: bigint
+        desc: 模块访问时间-上个周期
+        source_table: "{dest_table}"
+        expression: "LAG(visit_time) OVER (PARTITION BY service, module ORDER BY date)"
+        conditions: ""
+        time_field: date
+  - dest_table: "dws_{community}_module_time_{period}"
+    service: module_stay_time
+    communities:
+      - openubmc
+      - openeuler
+    cal_time_config:
+      periods:
+        - day
+      scope:
+        strategy: config_period
+      series:
+        completion: "true"
+        fill_value: "0"
+      save_date: "true"
+    dims:
+      - col: service
+      - col: module
+    metrics:
+      - name: stay_time
+        type: derivative
+        value_type: bigint
+        desc: 模块停留时间
+        source_table: "dws_{community}_service_stay_time"
+        expression: sum(stay_time)
+        conditions: ""
+        time_field: date
+  - dest_table: "dws_{community}_module_time_{period}"
+    service: module_stay_time
+    communities:
+      - openubmc
+      - openeuler
+    cal_time_config:
+      periods:
+        - day
+      scope:
+        strategy: config_period
+      series:
+        completion: "true"
+        fill_value: "0"
+      save_date: "true"
+    dims:
+      - col: service
+      - col: module
+    metrics:
+      - name: previous_stay_time
+        type: compound_m
+        value_type: bigint
+        desc: 模块停留时间-上个周期
+        source_table: "{dest_table}"
+        expression: "LAG(stay_time) OVER (PARTITION BY service, module ORDER BY date)"
+        conditions: ""
+        time_field: date
