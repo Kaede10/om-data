@@ -2,15 +2,11 @@ name: OpenCode Issue Processor
 
 on:
   issues:
-    types: [labeled, edited]
-  issue_comment:
-    types: [created]
-  workflow_dispatch:
-    inputs:
-      issue_number:
-        description: 'Issue number to process'
-        required: true
-        type: number
+    types: [labeled]
+
+concurrency:
+  group: process-issue-${{ github.event.issue.number }}
+  cancel-in-progress: true
 
 permissions:
   issues: write
@@ -22,21 +18,18 @@ jobs:
     timeout-minutes: 30
     
     steps:
-      - name: Check if issue has accept label
+      - name: Check if added label is accept
         id: check-label
         env:
-          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
-          GH_TOKEN: ${{ github.token }}
+          ADDED_LABEL: ${{ github.event.label.name }}
         run: |
-          LABELS=$(gh issue view $ISSUE_NUMBER -R ${{ github.repository }} --json labels -q '.labels[].name')
-          
-          if echo "$LABELS" | grep -q "^accept$"; then
-            echo "has_accept=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_accept=false" >> $GITHUB_OUTPUT
+          if [ "$ADDED_LABEL" != "accept" ]; then
+            echo "Skipping: added label is '$ADDED_LABEL', not 'accept'"
+            exit 0
           fi
+          echo "has_accept=true" >> $GITHUB_OUTPUT
 
-      - name: Exit if no accept label
+      - name: Exit if not accept
         if: steps.check-label.outputs.has_accept != 'true'
         run: exit 0
 
@@ -47,7 +40,7 @@ jobs:
       - name: Prepare issue data
         if: steps.check-label.outputs.has_accept == 'true'
         env:
-          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p /tmp/opencode
@@ -88,7 +81,7 @@ jobs:
         if: steps.check-label.outputs.has_accept == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
           EXIT_CODE: ${{ steps.opencode.outputs.exit_code }}
         run: |
           if [ -f /tmp/opencode/output.txt ] && [ -s /tmp/opencode/output.txt ]; then
