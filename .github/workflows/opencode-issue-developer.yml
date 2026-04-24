@@ -96,6 +96,9 @@ jobs:
         if: steps.check-label.outputs.has_approved == 'true'
         id: check-changes
         run: |
+          # 排除 workflow 文件变更（GITHUB_TOKEN 无 workflows 权限）
+          git checkout -- .github/workflows/ 2>/dev/null || true
+          
           if [ -z "$(git status --porcelain)" ]; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
           else
@@ -109,7 +112,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
+          # 只添加非 workflow 文件
+          git add -A ':!.github/workflows/'
           git commit -m "Implement changes for issue #${{ env.ISSUE_NUMBER }}"
 
       - name: Push branch
