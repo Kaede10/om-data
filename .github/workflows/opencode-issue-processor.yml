@@ -1,0 +1,122 @@
+name: OpenCode Issue Processor
+
+on:
+  issues:
+    types: [labeled, edited]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to process'
+        required: true
+        type: number
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  process-issue:
+    runs-on: self-hosted
+    timeout-minutes: 30
+    
+    steps:
+      - name: Check if issue has accept label
+        id: check-label
+        env:
+          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LABELS=$(gh issue view $ISSUE_NUMBER --json labels -q '.labels[].name')
+          
+          if echo "$LABELS" | grep -q "^accept$"; then
+            echo "has_accept=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_accept=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Exit if no accept label
+        if: steps.check-label.outputs.has_accept != 'true'
+        run: exit 0
+
+      - name: Checkout repository
+        if: steps.check-label.outputs.has_accept == 'true'
+        uses: actions/checkout@v4
+
+      - name: Prepare issue data
+        if: steps.check-label.outputs.has_accept == 'true'
+        env:
+          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/opencode
+          
+          ISSUE_TITLE=$(gh issue view $ISSUE_NUMBER --json title -q '.title')
+          ISSUE_BODY=$(gh issue view $ISSUE_NUMBER --json body -q '.body')
+          
+          cat > /tmp/opencode/issue_context.txt << EOF
+          Issue #${{ env.ISSUE_NUMBER }}: $ISSUE_TITLE
+          
+          $ISSUE_BODY
+          EOF
+          
+          gh issue view $ISSUE_NUMBER --json comments -q '.comments[] | "- \(.author.login): \(.body)"' > /tmp/opencode/issue_comments.txt || echo "暂无评论" > /tmp/opencode/issue_comments.txt
+
+      - name: Run opencode
+        if: steps.check-label.outputs.has_accept == 'true'
+        id: opencode
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+        run: |
+          MESSAGE="请根据以下 GitHub Issue 进行需求和设计分析：
+          
+          Issue 内容：
+          $(cat /tmp/opencode/issue_context.txt)
+          
+          评论区讨论：
+          $(cat /tmp/opencode/issue_comments.txt)
+          
+          请输出详细的需求分析和设计方案。"
+          
+          cd /home/wcp/my-projects/om-data
+          opencode run "$MESSAGE" --model glm-5 > /tmp/opencode/output.txt 2>&1 || true
+          
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Post result to issue
+        if: steps.check-label.outputs.has_accept == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
+          EXIT_CODE: ${{ steps.opencode.outputs.exit_code }}
+        run: |
+          if [ -f /tmp/opencode/output.txt ] && [ -s /tmp/opencode/output.txt ]; then
+            RESULT=$(cat /tmp/opencode/output.txt)
+          else
+            RESULT="执行失败，未生成输出"
+          fi
+          
+          MAX_LENGTH=65000
+          if [ ${#RESULT} -gt $MAX_LENGTH ]; then
+            RESULT="${RESULT:0:$MAX_LENGTH}\n\n... (输出过长，已截断)"
+          fi
+          
+          if [ "$EXIT_CODE" != "0" ]; then
+            COMMENT="⚠️ **OpenCode 处理出错** (Exit code: $EXIT_CODE)
+          
+          \`\`\`
+          $RESULT
+          \`\`\`"
+          else
+            COMMENT="✅ **OpenCode 分析结果**
+          
+          $RESULT"
+          fi
+          
+          gh issue comment $ISSUE_NUMBER --body "$COMMENT"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -rf /tmp/opencode || true
