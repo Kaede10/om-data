@@ -80,7 +80,7 @@ jobs:
           请输出详细的需求分析和设计方案。"
           
           cd ${{ github.workspace }}
-          /home/wcp/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 > /tmp/opencode/output.txt 2>&1 || true
+          /home/wcp/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 --thinking=false > /tmp/opencode/output.txt 2>&1 || true
           
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
@@ -92,7 +92,8 @@ jobs:
           EXIT_CODE: ${{ steps.opencode.outputs.exit_code }}
         run: |
           if [ -f /tmp/opencode/output.txt ] && [ -s /tmp/opencode/output.txt ]; then
-            RESULT=$(cat /tmp/opencode/output.txt)
+            # 过滤 ANSI escape codes 和思考信息
+            RESULT=$(cat /tmp/opencode/output.txt | sed 's/\x1b\[[0-9;]*m//g' | grep -v "^>\s*build\|^>\s*glm\|^✱\|^✗\|^←\|^→\|^$\s*\|^#\s*\|^$\s*whoami\|^$\s*ls\|^$\s*cat\|^$\s*pwd" | sed '/^$/N;/^\n$/d')
           else
             RESULT="执行失败，未生成输出"
           fi
