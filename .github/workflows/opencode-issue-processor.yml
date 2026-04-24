@@ -2,7 +2,9 @@ name: OpenCode Issue Processor
 
 on:
   issues:
-    types: [labeled]
+    types: [labeled, edited]
+  issue_comment:
+    types: [created]
 
 concurrency:
   group: process-issue-${{ github.event.issue.number }}
@@ -18,16 +20,34 @@ jobs:
     timeout-minutes: 30
     
     steps:
-      - name: Check if added label is accept
+      - name: Check trigger conditions
         id: check-label
         env:
-          ADDED_LABEL: ${{ github.event.label.name }}
+          EVENT_NAME: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          ADDED_LABEL: ${{ github.event.label.name || '' }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "$ADDED_LABEL" != "accept" ]; then
-            echo "Skipping: added label is '$ADDED_LABEL', not 'accept'"
+          # labeled 事件：只有添加 accept 标签才执行
+          if [ "$EVENT_NAME" = "issues" ] && [ "$ACTION" = "labeled" ]; then
+            if [ "$ADDED_LABEL" != "accept" ]; then
+              echo "Skipping: labeled event but label is '$ADDED_LABEL', not 'accept'"
+              exit 0
+            fi
+            echo "has_accept=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-          echo "has_accept=true" >> $GITHUB_OUTPUT
+          
+          # edited 或 issue_comment 事件：检查 issue 是否有 accept 标签
+          LABELS=$(gh issue view $ISSUE_NUMBER -R ${{ github.repository }} --json labels -q '.labels[].name')
+          
+          if echo "$LABELS" | grep -q "^accept$"; then
+            echo "has_accept=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_accept=false" >> $GITHUB_OUTPUT
+            echo "Skipping: issue does not have 'accept' label"
+          fi
 
       - name: Exit if not accept
         if: steps.check-label.outputs.has_accept != 'true'
