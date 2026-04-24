@@ -90,17 +90,41 @@ jobs:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         run: |
           MESSAGE="请根据以下 GitHub Issue 进行需求和设计分析：
-          
+
           Issue 内容：
           $(cat /tmp/opencode/issue_context.txt)
           
           评论区讨论：
           $(cat /tmp/opencode/issue_comments.txt)
           
-          请输出详细的需求分析和设计方案。"
+          请直接输出以下内容（不要包含任何思考过程、调试信息、命令执行记录）：
+          
+          ## 需求分析报告
+          
+          ### 1. Issue 概述
+          （简要描述 Issue 的类型、优先级、核心需求）
+          
+          ### 2. 需求详情
+          （详细列出功能需求、非功能需求）
+          
+          ### 3. 影响范围
+          （分析对现有系统的影响）
+          
+          ## 设计方案文档
+          
+          ### 1. 技术方案
+          （详细的技术实现方案）
+          
+          ### 2. 实现步骤
+          （分步骤的实现计划）
+          
+          ### 3. 验收标准
+          （明确的验收条件和测试方案）
+          
+          请严格按此格式输出，不要输出任何其他内容。"
           
           cd ${{ github.workspace }}
-          /home/wcp/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 --thinking=false > /tmp/opencode/output.txt 2>&1 || true
+          $HOME/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 --thinking=false > /tmp/opencode/output.txt 2>&1 || true
           
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
@@ -112,8 +136,7 @@ jobs:
           EXIT_CODE: ${{ steps.opencode.outputs.exit_code }}
         run: |
           if [ -f /tmp/opencode/output.txt ] && [ -s /tmp/opencode/output.txt ]; then
-            # 过滤 ANSI escape codes 和思考信息
-            RESULT=$(cat /tmp/opencode/output.txt | sed 's/\x1b\[[0-9;]*m//g' | grep -v "^>\s*build\|^>\s*glm\|^✱\|^✗\|^←\|^→\|^$\s*\|^#\s*\|^$\s*whoami\|^$\s*ls\|^$\s*cat\|^$\s*pwd" | sed '/^$/N;/^\n$/d')
+            RESULT=$(cat /tmp/opencode/output.txt | sed 's/\x1b\[[0-9;]*m//g')
           else
             RESULT="执行失败，未生成输出"
           fi
