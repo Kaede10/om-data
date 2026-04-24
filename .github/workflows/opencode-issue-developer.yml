@@ -116,7 +116,7 @@ jobs:
           请根据实际变更类型勾选对应项，并在描述部分填写具体的变更内容。"
           
           cd ${{ github.workspace }}
-          $HOME/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 --agent build --dangerously-skip-permissions --thinking=false > /tmp/opencode/output.txt 2>&1 || true
+          $HOME/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 --agent build --dangerously-skip-permissions --thinking=false --log-level ERROR > /tmp/opencode/output.txt 2>&1 || true
           
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
@@ -187,19 +187,17 @@ jobs:
           
           if [ "$EXIT_CODE" != "0" ]; then
             COMMENT="⚠️ **OpenCode 开发出错** (Exit code: $EXIT_CODE)
-          
-          \`\`\`
-          $RESULT
-          \`\`\`"
+
+          $RESULT"
           elif [ "$HAS_CHANGES" != "true" ]; then
             COMMENT="ℹ️ **OpenCode 开发完成**
-          
+
           未检测到代码变更。$RESULT"
           else
             COMMENT="✅ **OpenCode 开发完成**
-          
+
           已创建 PR: $PR_URL
-          
+
           $RESULT"
           fi
           

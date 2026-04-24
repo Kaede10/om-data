@@ -124,7 +124,7 @@ jobs:
           请严格按此格式输出，不要输出任何其他内容。"
           
           cd ${{ github.workspace }}
-          $HOME/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 --thinking=false > /tmp/opencode/output.txt 2>&1 || true
+          $HOME/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 --thinking=false --log-level ERROR > /tmp/opencode/output.txt 2>&1 || true
           
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
@@ -136,7 +136,11 @@ jobs:
           EXIT_CODE: ${{ steps.opencode.outputs.exit_code }}
         run: |
           if [ -f /tmp/opencode/output.txt ] && [ -s /tmp/opencode/output.txt ]; then
-            RESULT=$(cat /tmp/opencode/output.txt | sed 's/\x1b\[[0-9;]*m//g')
+            # 只保留 markdown 内容：以 # 开头的标题和正文
+            RESULT=$(cat /tmp/opencode/output.txt | \
+              sed 's/\x1b\[[0-9;]*m//g' | \
+              grep -vE "^\$|^✱|^→|^←|^✗|^\[Pasted|^total|^drwx|^-rw|^/home/|^actions-runner|^_work|^\.git|^\.github" | \
+              sed '/^$/N;/^\n$/D')
           else
             RESULT="执行失败，未生成输出"
           fi
@@ -148,14 +152,10 @@ jobs:
           
           if [ "$EXIT_CODE" != "0" ]; then
             COMMENT="⚠️ **OpenCode 处理出错** (Exit code: $EXIT_CODE)
-          
-          \`\`\`
-          $RESULT
-          \`\`\`"
-          else
-            COMMENT="✅ **OpenCode 分析结果**
-          
+
           $RESULT"
+          else
+            COMMENT="$RESULT"
           fi
           
           gh issue comment $ISSUE_NUMBER -R ${{ github.repository }} --body "$COMMENT"
