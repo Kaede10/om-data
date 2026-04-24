@@ -127,7 +127,13 @@ jobs:
           BRANCH_NAME: ${{ steps.create-branch.outputs.branch_name }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          PR_URL=$(gh pr create --title "Implement issue #${{ env.ISSUE_NUMBER }}" --body "This PR implements the changes for issue #${{ env.ISSUE_NUMBER }}.\n\n## Changes\n\n$(cat /tmp/opencode/output.txt)" --base main)
+          PR_BODY="This PR implements the changes for issue #${{ env.ISSUE_NUMBER }}.
+
+          ## Changes
+
+          $(cat /tmp/opencode/output.txt)"
+          
+          PR_URL=$(gh pr create --title "Implement issue #${{ env.ISSUE_NUMBER }}" --body "$PR_BODY" --base main)
           echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
           gh pr edit --add-label "auto-generated"
 
