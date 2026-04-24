@@ -91,7 +91,7 @@ jobs:
           请根据分析结果实现代码变更。完成后请说明所做的修改。"
           
           cd /home/wcp/my-projects/om-data
-          /home/wcp/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 > /tmp/opencode/output.txt 2>&1 || true
+          /home/wcp/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 --agent build --dangerously-skip-permissions > /tmp/opencode/output.txt 2>&1 || true
           
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
