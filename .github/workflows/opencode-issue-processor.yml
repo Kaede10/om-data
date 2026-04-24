@@ -80,7 +80,7 @@ jobs:
           请输出详细的需求分析和设计方案。"
           
           cd /home/wcp/my-projects/om-data
-          /root/.nvm/versions/node/v20.20.1/bin/opencode run "$MESSAGE" --model glm-5 > /tmp/opencode/output.txt 2>&1 || true
+          /home/wcp/.opencode/bin/opencode run "$MESSAGE" --model glm-5 > /tmp/opencode/output.txt 2>&1 || true
           
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
