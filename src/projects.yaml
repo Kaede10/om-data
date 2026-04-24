@@ -1,3 +1,30 @@
+organizations:
+  - platform: github
+    orgs:
+      - kmesh-net
+      - kuasar-io
+      - kurator-dev
+      - kappital
+      - eclipse-oniro4openharmony
+  - platform: gitee
+    orgs:
+      - openeuler
+  - platform: gitcode
+    orgs:
+      - opengauss
+      - Cantian
+      - openFuyao
+      - openlookeng
+      - eBackup
+      - ModelEngine
+      - xuanwu
+      - Cangjie
+      - openInula
+      - openHiTLS
+      - huaweicloud
+      - DevCloudFE
+      - opentiny
+
 projects:
   - project: openGauss
     items:
