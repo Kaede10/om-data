@@ -3,15 +3,9 @@ name: OpenCode Issue Developer
 on:
   issues:
     types: [labeled]
-  workflow_dispatch:
-    inputs:
-      issue_number:
-        description: 'Issue number to develop'
-        required: true
-        type: number
 
 concurrency:
-  group: develop-issue-${{ github.event.inputs.issue_number || github.event.issue.number }}
+  group: develop-issue-${{ github.event.issue.number }}
   cancel-in-progress: true
 
 permissions:
@@ -25,31 +19,18 @@ jobs:
     timeout-minutes: 60
     
     steps:
-      - name: Check if issue has approved label
+      - name: Check if added label is approved
         id: check-label
         env:
-          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
-          GH_TOKEN: ${{ github.token }}
-          EVENT_TYPE: ${{ github.event_name }}
-          ADDED_LABEL: ${{ github.event.label.name || '' }}
+          ADDED_LABEL: ${{ github.event.label.name }}
         run: |
-          # 如果是 labeled 事件，检查添加的标签是否是 approved
-          if [ "$EVENT_TYPE" = "issues" ] && [ "$ADDED_LABEL" != "approved" ]; then
-            echo "has_approved=false" >> $GITHUB_OUTPUT
-            echo "Skipping: labeled event but label is '$ADDED_LABEL', not 'approved'"
+          if [ "$ADDED_LABEL" != "approved" ]; then
+            echo "Skipping: added label is '$ADDED_LABEL', not 'approved'"
             exit 0
           fi
-          
-          # 检查 issue 是否有 approved 标签
-          LABELS=$(gh issue view $ISSUE_NUMBER -R ${{ github.repository }} --json labels -q '.labels[].name')
-          
-          if echo "$LABELS" | grep -q "^approved$"; then
-            echo "has_approved=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_approved=false" >> $GITHUB_OUTPUT
-          fi
+          echo "has_approved=true" >> $GITHUB_OUTPUT
 
-      - name: Exit if no approved label
+      - name: Exit if not approved
         if: steps.check-label.outputs.has_approved != 'true'
         run: exit 0
 
@@ -63,7 +44,7 @@ jobs:
         if: steps.check-label.outputs.has_approved == 'true'
         id: create-branch
         env:
-          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_TOKEN: ${{ github.token }}
         run: |
           BRANCH_NAME="issue-${{ env.ISSUE_NUMBER }}-dev"
@@ -74,7 +55,7 @@ jobs:
       - name: Prepare issue data
         if: steps.check-label.outputs.has_approved == 'true'
         env:
-          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p /tmp/opencode
@@ -124,7 +105,7 @@ jobs:
       - name: Commit changes
         if: steps.check-label.outputs.has_approved == 'true' && steps.check-changes.outputs.has_changes == 'true'
         env:
-          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -142,7 +123,7 @@ jobs:
         if: steps.check-label.outputs.has_approved == 'true' && steps.check-changes.outputs.has_changes == 'true'
         id: create-pr
         env:
-          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
           BRANCH_NAME: ${{ steps.create-branch.outputs.branch_name }}
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -154,7 +135,7 @@ jobs:
         if: steps.check-label.outputs.has_approved == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
           EXIT_CODE: ${{ steps.opencode.outputs.exit_code }}
           HAS_CHANGES: ${{ steps.check-changes.outputs.has_changes }}
           PR_URL: ${{ steps.create-pr.outputs.pr_url }}
