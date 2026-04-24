@@ -26,9 +26,16 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           ACTION: ${{ github.event.action }}
           ADDED_LABEL: ${{ github.event.label.name || '' }}
+          ISSUE_STATE: ${{ github.event.issue.state }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_TOKEN: ${{ github.token }}
         run: |
+          # 检查 issue 状态是否为 open
+          if [ "$ISSUE_STATE" != "open" ]; then
+            echo "Skipping: issue state is '$ISSUE_STATE', not 'open'"
+            exit 0
+          fi
+          
           # labeled 事件：只有添加 accept 标签才执行
           if [ "$EVENT_NAME" = "issues" ] && [ "$ACTION" = "labeled" ]; then
             if [ "$ADDED_LABEL" != "accept" ]; then
