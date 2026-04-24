@@ -10,6 +10,10 @@ on:
         required: true
         type: number
 
+concurrency:
+  group: develop-issue-${{ github.event.inputs.issue_number || github.event.issue.number }}
+  cancel-in-progress: true
+
 permissions:
   issues: write
   contents: write
@@ -26,7 +30,17 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
           GH_TOKEN: ${{ github.token }}
+          EVENT_TYPE: ${{ github.event_name }}
+          ADDED_LABEL: ${{ github.event.label.name || '' }}
         run: |
+          # 如果是 labeled 事件，检查添加的标签是否是 approved
+          if [ "$EVENT_TYPE" = "issues" ] && [ "$ADDED_LABEL" != "approved" ]; then
+            echo "has_approved=false" >> $GITHUB_OUTPUT
+            echo "Skipping: labeled event but label is '$ADDED_LABEL', not 'approved'"
+            exit 0
+          fi
+          
+          # 检查 issue 是否有 approved 标签
           LABELS=$(gh issue view $ISSUE_NUMBER -R ${{ github.repository }} --json labels -q '.labels[].name')
           
           if echo "$LABELS" | grep -q "^approved$"; then
