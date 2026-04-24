@@ -28,7 +28,7 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          LABELS=$(gh issue view $ISSUE_NUMBER --json labels -q '.labels[].name')
+          LABELS=$(gh issue view $ISSUE_NUMBER -R ${{ github.repository }} --json labels -q '.labels[].name')
           
           if echo "$LABELS" | grep -q "^accept$"; then
             echo "has_accept=true" >> $GITHUB_OUTPUT
@@ -52,8 +52,8 @@ jobs:
         run: |
           mkdir -p /tmp/opencode
           
-          ISSUE_TITLE=$(gh issue view $ISSUE_NUMBER --json title -q '.title')
-          ISSUE_BODY=$(gh issue view $ISSUE_NUMBER --json body -q '.body')
+          ISSUE_TITLE=$(gh issue view $ISSUE_NUMBER -R ${{ github.repository }} --json title -q '.title')
+          ISSUE_BODY=$(gh issue view $ISSUE_NUMBER -R ${{ github.repository }} --json body -q '.body')
           
           cat > /tmp/opencode/issue_context.txt << EOF
           Issue #${{ env.ISSUE_NUMBER }}: $ISSUE_TITLE
@@ -61,7 +61,7 @@ jobs:
           $ISSUE_BODY
           EOF
           
-          gh issue view $ISSUE_NUMBER --json comments -q '.comments[] | "- \(.author.login): \(.body)"' > /tmp/opencode/issue_comments.txt || echo "暂无评论" > /tmp/opencode/issue_comments.txt
+          gh issue view $ISSUE_NUMBER -R ${{ github.repository }} --json comments -q '.comments[] | "- \(.author.login): \(.body)"' > /tmp/opencode/issue_comments.txt || echo "暂无评论" > /tmp/opencode/issue_comments.txt
 
       - name: Run opencode
         if: steps.check-label.outputs.has_accept == 'true'
@@ -114,7 +114,7 @@ jobs:
           $RESULT"
           fi
           
-          gh issue comment $ISSUE_NUMBER --body "$COMMENT"
+          gh issue comment $ISSUE_NUMBER -R ${{ github.repository }} --body "$COMMENT"
 
       - name: Cleanup
         if: always()
