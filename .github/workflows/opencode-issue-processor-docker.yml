@@ -1,0 +1,171 @@
+name: OpenCode Issue Processor (Docker)
+
+on:
+  issues:
+    types: [labeled, edited]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: process-issue-docker-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  process-issue:
+    runs-on: self-hosted
+    container:
+      image: ghcr.io/kaede10/opencode:latest
+      options: --user root
+      env:
+        HOME: /root
+    timeout-minutes: 30
+    
+    steps:
+      - name: Check trigger conditions
+        id: check-label
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          ADDED_LABEL: ${{ github.event.label.name || '' }}
+          ISSUE_STATE: ${{ github.event.issue.state }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$ISSUE_STATE" != "open" ]; then
+            echo "Skipping: issue state is '$ISSUE_STATE', not 'open'"
+            exit 0
+          fi
+          
+          if [ "$EVENT_NAME" = "issues" ] && [ "$ACTION" = "labeled" ]; then
+            if [ "$ADDED_LABEL" != "accept" ]; then
+              echo "Skipping: labeled event but label is '$ADDED_LABEL', not 'accept'"
+              exit 0
+            fi
+            echo "has_accept=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          LABELS=$(gh issue view $ISSUE_NUMBER -R ${{ github.repository }} --json labels -q '.labels[].name')
+          
+          if echo "$LABELS" | grep -q "^accept$"; then
+            echo "has_accept=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_accept=false" >> $GITHUB_OUTPUT
+            echo "Skipping: issue does not have 'accept' label"
+          fi
+
+      - name: Exit if not accept
+        if: steps.check-label.outputs.has_accept != 'true'
+        run: exit 0
+
+      - name: Checkout repository
+        if: steps.check-label.outputs.has_accept == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup opencode credentials
+        if: steps.check-label.outputs.has_accept == 'true'
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+        run: |
+          mkdir -p /root/.local/share/opencode
+          if [ -n "$OPENCODE_API_KEY" ]; then
+            echo '{"alibaba-cn":{"api_key":"$OPENCODE_API_KEY"}}' > /root/.local/share/opencode/auth.json
+          fi
+
+      - name: Prepare issue data
+        if: steps.check-label.outputs.has_accept == 'true'
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/opencode
+          
+          ISSUE_TITLE=$(gh issue view $ISSUE_NUMBER -R ${{ github.repository }} --json title -q '.title')
+          ISSUE_BODY=$(gh issue view $ISSUE_NUMBER -R ${{ github.repository }} --json body -q '.body')
+          
+          cat > /tmp/opencode/issue_context.txt << EOF
+          Issue #${{ env.ISSUE_NUMBER }}: $ISSUE_TITLE
+          
+          $ISSUE_BODY
+          EOF
+          
+          gh issue view $ISSUE_NUMBER -R ${{ github.repository }} --json comments -q '.comments[] | "- \(.author.login): \(.body)"' > /tmp/opencode/issue_comments.txt || echo "暂无评论" > /tmp/opencode/issue_comments.txt
+
+      - name: Run opencode
+        if: steps.check-label.outputs.has_accept == 'true'
+        id: opencode
+        run: |
+          MESSAGE="请根据以下 GitHub Issue 进行需求和设计分析，将结果写入指定文件。
+
+          Issue 内容：
+          $(cat /tmp/opencode/issue_context.txt)
+          
+          评论区讨论：
+          $(cat /tmp/opencode/issue_comments.txt)
+          
+          请执行以下操作：
+          1. 将需求分析报告写入 /tmp/opencode/requirements.md，包含：Issue 概述、需求详情、影响范围
+          2. 将设计方案文档写入 /tmp/opencode/design.md，包含：技术方案、实现步骤、验收标准
+          
+          文件格式要求：
+          - 使用标准 Markdown 格式
+          - 每个文件以一级标题开始
+          - 不要输出任何其他内容到 stdout"
+
+          cd ${{ github.workspace }}
+          opencode run "$MESSAGE" --model alibaba-cn/glm-5 --agent build --dangerously-skip-permissions --thinking=false --log-level ERROR 2>/dev/null || true
+          
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Post result to issue
+        if: steps.check-label.outputs.has_accept == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          EXIT_CODE: ${{ steps.opencode.outputs.exit_code }}
+        run: |
+          if [ -f /tmp/opencode/requirements.md ] && [ -s /tmp/opencode/requirements.md ]; then
+            REQUIREMENTS=$(cat /tmp/opencode/requirements.md)
+          else
+            REQUIREMENTS="需求分析报告生成失败"
+          fi
+          
+          if [ -f /tmp/opencode/design.md ] && [ -s /tmp/opencode/design.md ]; then
+            DESIGN=$(cat /tmp/opencode/design.md)
+          else
+            DESIGN="设计方案文档生成失败"
+          fi
+          
+          if [ "$EXIT_CODE" != "0" ]; then
+            COMMENT="⚠️ **OpenCode 处理出错** (Exit code: $EXIT_CODE)
+
+          $REQUIREMENTS
+
+          ---
+
+          $DESIGN"
+          else
+            COMMENT="$REQUIREMENTS
+
+          ---
+
+          $DESIGN"
+          fi
+          
+          MAX_LENGTH=65000
+          if [ ${#COMMENT} -gt $MAX_LENGTH ]; then
+            COMMENT="${COMMENT:0:$MAX_LENGTH}
+
+          ... (输出过长，已截断)"
+          fi
+          
+          gh issue comment $ISSUE_NUMBER -R ${{ github.repository }} --body "$COMMENT"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -rf /tmp/opencode || true
