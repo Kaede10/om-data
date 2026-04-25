@@ -116,7 +116,6 @@ jobs:
           - 每个文件以一级标题开始
           - 不要输出任何其他内容到 stdout"
 
-          cd ${{ github.workspace }}
           opencode run "$MESSAGE" --model alibaba-cn/glm-5 --agent build --dangerously-skip-permissions --thinking=false --log-level ERROR 2>/dev/null || true
           
           echo "exit_code=$?" >> $GITHUB_OUTPUT
