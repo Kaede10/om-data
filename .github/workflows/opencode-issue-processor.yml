@@ -105,7 +105,7 @@ jobs:
           - 不要输出任何其他内容到 stdout"
 
           cd ${{ github.workspace }}
-          $HOME/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 --thinking=false --log-level ERROR 2>/dev/null || true
+          $HOME/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 --agent build --dangerously-skip-permissions --thinking=false --log-level ERROR 2>/dev/null || true
           
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
