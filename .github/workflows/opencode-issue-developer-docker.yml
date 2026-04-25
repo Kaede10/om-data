@@ -54,6 +54,7 @@ jobs:
       - name: Setup git credentials
         if: steps.check-label.outputs.has_approved == 'true'
         run: |
+          git config --global --add safe.directory /__w/om-data/om-data
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
