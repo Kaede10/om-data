@@ -22,5 +22,5 @@ jobs:
 
       - name: Build and push
         run: |
-          sudo docker build -t ghcr.io/${{ github.repository_owner }}/opencode:latest docker/opencode
-          sudo docker push ghcr.io/${{ github.repository_owner }}/opencode:latest
+          sudo docker build -t ghcr.io/kaede10/opencode:latest docker/opencode
+          sudo docker push ghcr.io/kaede10/opencode:latest
