@@ -86,8 +86,6 @@ jobs:
       - name: Run opencode
         if: steps.check-label.outputs.has_accept == 'true'
         id: opencode
-        env:
-          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         run: |
           MESSAGE="请根据以下 GitHub Issue 进行需求和设计分析，将结果写入指定文件。
 

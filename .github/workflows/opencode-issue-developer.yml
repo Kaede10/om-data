@@ -89,8 +89,6 @@ jobs:
       - name: Run opencode for development
         if: steps.check-label.outputs.has_approved == 'true'
         id: opencode
-        env:
-          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         run: |
           MESSAGE="请根据以下 GitHub Issue 和分析结果进行代码开发实现：
           
