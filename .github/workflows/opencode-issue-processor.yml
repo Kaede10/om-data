@@ -89,7 +89,7 @@ jobs:
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         run: |
-          MESSAGE="请根据以下 GitHub Issue 进行需求和设计分析：
+          MESSAGE="请根据以下 GitHub Issue 进行需求和设计分析，将结果写入指定文件。
 
           Issue 内容：
           $(cat /tmp/opencode/issue_context.txt)
@@ -97,34 +97,17 @@ jobs:
           评论区讨论：
           $(cat /tmp/opencode/issue_comments.txt)
           
-          请直接输出以下内容（不要包含任何思考过程、调试信息、命令执行记录）：
+          请执行以下操作：
+          1. 将需求分析报告写入 /tmp/opencode/requirements.md，包含：Issue 概述、需求详情、影响范围
+          2. 将设计方案文档写入 /tmp/opencode/design.md，包含：技术方案、实现步骤、验收标准
           
-          ## 需求分析报告
-          
-          ### 1. Issue 概述
-          （简要描述 Issue 的类型、优先级、核心需求）
-          
-          ### 2. 需求详情
-          （详细列出功能需求、非功能需求）
-          
-          ### 3. 影响范围
-          （分析对现有系统的影响）
-          
-          ## 设计方案文档
-          
-          ### 1. 技术方案
-          （详细的技术实现方案）
-          
-          ### 2. 实现步骤
-          （分步骤的实现计划）
-          
-          ### 3. 验收标准
-          （明确的验收条件和测试方案）
-          
-          请严格按此格式输出，不要输出任何其他内容。"
-          
+          文件格式要求：
+          - 使用标准 Markdown 格式
+          - 每个文件以一级标题开始
+          - 不要输出任何其他内容到 stdout"
+
           cd ${{ github.workspace }}
-          $HOME/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 --thinking=false --log-level ERROR > /tmp/opencode/output.txt 2>&1 || true
+          $HOME/.opencode/bin/opencode run "$MESSAGE" --model alibaba-cn/glm-5 --thinking=false --log-level ERROR 2>/dev/null || true
           
           echo "exit_code=$?" >> $GITHUB_OUTPUT
 
@@ -135,27 +118,39 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           EXIT_CODE: ${{ steps.opencode.outputs.exit_code }}
         run: |
-          if [ -f /tmp/opencode/output.txt ] && [ -s /tmp/opencode/output.txt ]; then
-            # 只保留 markdown 内容：以 # 开头的标题和正文
-            RESULT=$(cat /tmp/opencode/output.txt | \
-              sed 's/\x1b\[[0-9;]*m//g' | \
-              grep -vE "^\$|^✱|^→|^←|^✗|^\[Pasted|^total|^drwx|^-rw|^/home/|^actions-runner|^_work|^\.git|^\.github" | \
-              sed '/^$/N;/^\n$/D')
+          if [ -f /tmp/opencode/requirements.md ] && [ -s /tmp/opencode/requirements.md ]; then
+            REQUIREMENTS=$(cat /tmp/opencode/requirements.md)
           else
-            RESULT="执行失败，未生成输出"
+            REQUIREMENTS="需求分析报告生成失败"
           fi
           
-          MAX_LENGTH=65000
-          if [ ${#RESULT} -gt $MAX_LENGTH ]; then
-            RESULT="${RESULT:0:$MAX_LENGTH}\n\n... (输出过长，已截断)"
+          if [ -f /tmp/opencode/design.md ] && [ -s /tmp/opencode/design.md ]; then
+            DESIGN=$(cat /tmp/opencode/design.md)
+          else
+            DESIGN="设计方案文档生成失败"
           fi
           
           if [ "$EXIT_CODE" != "0" ]; then
             COMMENT="⚠️ **OpenCode 处理出错** (Exit code: $EXIT_CODE)
 
-          $RESULT"
+          $REQUIREMENTS
+
+          ---
+
+          $DESIGN"
           else
-            COMMENT="$RESULT"
+            COMMENT="$REQUIREMENTS
+
+          ---
+
+          $DESIGN"
+          fi
+          
+          MAX_LENGTH=65000
+          if [ ${#COMMENT} -gt $MAX_LENGTH ]; then
+            COMMENT="${COMMENT:0:$MAX_LENGTH}
+
+          ... (输出过长，已截断)"
           fi
           
           gh issue comment $ISSUE_NUMBER -R ${{ github.repository }} --body "$COMMENT"
