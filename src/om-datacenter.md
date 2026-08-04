@@ -3,6 +3,7 @@
 > 基于对 om-dataarts、APIMagic、datastat-manage-website 三服务源码的只读分析。
 > 血缘来源：om-dataarts `om/pipelines/sql/*.sql`（128 个）+ `.job` 流水线 + `om/tasks/code/*generate*.py` + `om/collector/*`（CI/Prometheus/云资源）；APIMagic `magic-api/api/**/*.ms`（356 个 API）；datastat-manage-website `src/api/*.ts`。
 > 约定：`{c}` = `{community}` 参数化占位（`fact_{community}_*`）。`swap` = 临时表全量换表（`*_temp` → RENAME）。
+> Mermaid 图中占位符写作 `%c%`（`{c}` 的 `{}` 与 `<>` 在 mermaid 中分别会破坏语法/被当作 HTML 标签吞掉）。
 > 完整子代理分析报告归档于 [docs/lineage/](lineage/README.md)：om-dataarts 128 SQL 逐文件血缘（`lineage/om-dataarts/sql_lineage.md`）与 APIMagic 356 API→表映射（`lineage/apimagic/final_report.md` / `map.txt`）。
 
 ---
@@ -217,8 +218,8 @@
 
 ```mermaid
 graph LR
-    subgraph 采集层[om-dataarts collectors 外部平台]
-        R1[Gitee/GitHub/GitCode<br/>repo/pr/issue/comment/star/fork/watch]
+    subgraph 采集层[om-dataarts<br/>collectors 外部平台]
+        R1[Gitee/GitHub/GitCode<br/>repo/pr/issue/comment/<br/>star/fork/watch]
         F1[Discourse/昇腾论坛]
         C1[CI/云资源 NPU CPU]
         D1[下载/邮件/会议/Authing]
@@ -226,41 +227,41 @@ graph LR
     end
 
     subgraph 贴源层[fact_*_*]
-        F_PR[fact_<c>_pr]
-        F_IS[fact_<c>_issue]
-        F_CO[fact_<c>_comment]
-        F_AS[fact_<c>_issue_associate]
-        F_SWF[fact_<c>_star/fork/watch/follower]
-        F_FO[fact_<c>_forum_topic/post]
-        F_CI[fact_<c>_ci_detail]
-        F_US[fact_<c>_sig_user / cla_user / user]
+        F_PR[fact_%c%_pr]
+        F_IS[fact_%c%_issue]
+        F_CO[fact_%c%_comment]
+        F_AS[fact_%c%_issue_associate]
+        F_SWF[fact_%c%_star/<br/>fork/watch/follower]
+        F_FO[fact_%c%_forum_topic/<br/>post]
+        F_CI[fact_%c%_ci_detail]
+        F_US[fact_%c%_sig_user<br/>· cla_user · user]
     end
 
     subgraph 核心层[DWS/DWM]
-        DWS_C[dws_<c>_contribute<br/>★ 核心中枢]
-        DWS_S[dws_<c>_swf]
-        DWS_UC[dws_<c>_user_company]
-        DWM_K[dwm_<c>_key_comment]
+        DWS_C[dws_%c%_contribute<br/>★ 核心中枢]
+        DWS_S[dws_%c%_swf]
+        DWS_UC[dws_%c%_user_company]
+        DWM_K[dwm_%c%_key_comment]
     end
 
     subgraph 汇总层[dws/dwm/ads 聚合]
-        DRD[dws_<c>_contribute_repo_daily]
-        DRUD[dws_<c>_contribute_repo_user_daily]
-        DRCD[dws_<c>_contribute_repo_company_daily]
-        DSD[dws_<c>_contribute_sig_daily]
-        DI[dws_<c>_pr/issue_contribute_repo_daily]
+        DRD[dws_%c%_contribute<br/>_repo_daily]
+        DRUD[dws_%c%_contribute<br/>_repo_user_daily]
+        DRCD[dws_%c%_contribute<br/>_repo_company_daily]
+        DSD[dws_%c%_contribute<br/>_sig_daily]
+        DI[dws_%c%_pr/issue_<br/>contribute_repo_daily]
         ADS[ads_metric_value]
-        ADSRU[ads_<c>_repo_user_stat]
-        DFD[dws_<c>_forum_category_daily]
-        DCD[dws_<c>_download_daily]
+        ADSRU[ads_%c%_repo_user_stat]
+        DFD[dws_%c%_forum_<br/>category_daily]
+        DCD[dws_%c%_download_daily]
     end
 
     subgraph 服务层[APIMagic /server API]
-        A1[query/prs/agg* · query/issues/agg*]
+        A1[query/prs/agg* ·<br/>query/issues/agg*]
         A2[project/* · stats/*]
         A3[overview/count · count]
         A4[user/* · sig/*]
-        A5[community/download/* · query/forum/*]
+        A5[community/download/<br/>* · query/forum/*]
     end
 
     subgraph 前端[datastat-manage-website]
@@ -298,36 +299,36 @@ graph LR
 ```mermaid
 graph LR
     subgraph 扇入[写入方]
-        IN1[union_contribute_base.sql<br/>fact pr/issue/comment/discussion/pr_files]
+        IN1[union_contribute_base.sql<br/>fact pr/issue/comment<br/>discussion/pr_files]
         IN2[closed_time.sql 关闭时长]
-        IN3[mark_sync_pr_author.sql 作者同步]
-        IN4[mark_sig_base.sql / mark_user_role_in_repo.sql SIG/角色]
-        IN5[update_company_info.sql 公司回填]
+        IN3[mark_sync_pr_author.sql<br/>作者同步]
+        IN4[mark_sig_base.sql /<br/>mark_user_role_in_<br/>repo.sql SIG/角色]
+        IN5[update_company_info.sql<br/>公司回填]
         IN6[标记仓库私有模式.sql private]
         IN7[更新真实姓名.sql 真实姓名]
-        IN8[valid_contact_base.sql 有效联系]
-        IN9[alter_table_contribute_ai_fields.sql AI字段]
-        IN10[first_response_base.sql 首响]
+        IN8[valid_contact_base.sql<br/>有效联系]
+        IN9[alter_table_contribute_<br/>ai_fields.sql<br/>AI字段]
+        IN10[first_response_base.sql<br/>首响]
     end
 
-    subgraph 中枢[★ dws_<c>_contribute<br/>一行=一个PR/Issue事件]
+    subgraph 中枢[★ dws_%c%_contribute<br/>一行=一个PR/Issue事件]
         HUB
     end
 
     subgraph 扇出[读取方]
         OUT1[ads_repo_user_stat.sql]
         OUT2[ads_sig_user_stat.sql]
-        OUT3[dws_contribute_repo_daily.sql]
-        OUT4[dws_contribute_repo_user_daily.sql]
-        OUT5[dws_contribute_repo_company_daily.sql]
-        OUT6[dws_contribute_company_daily.sql]
-        OUT7[dws_contribute_sig_daily.sql]
-        OUT8[dws_contribute_median_time.sql]
-        OUT9[dws_contribute_user_action.sql]
-        OUT10[dws_active_user_daily.sql]
+        OUT3[dws_contribute<br/>_repo_daily.sql]
+        OUT4[dws_contribute_repo_<br/>user_daily.sql]
+        OUT5[dws_contribute_repo_<br/>company_daily.sql]
+        OUT6[dws_contribute_<br/>company_daily.sql]
+        OUT7[dws_contribute<br/>_sig_daily.sql]
+        OUT8[dws_contribute_<br/>median_time.sql]
+        OUT9[dws_contribute_<br/>user_action.sql]
+        OUT10[dws_active_<br/>user_daily.sql]
         OUT11[SIG-user维度贡献统计.sql]
         OUT12[SIG角色贡献.sql]
-        OUT13[API /comment/detail /stats/issue /project/review ...]
+        OUT13[API /comment/detail<br/>· stats/issue ·<br/>project/review ...]
     end
 
     IN1 & IN2 & IN3 & IN4 & IN5 & IN6 & IN7 & IN8 & IN9 & IN10 --> HUB
@@ -338,37 +339,37 @@ graph LR
 
 ```mermaid
 graph LR
-    CLA[fact_<c>_cla_user] --> U1[user_company_by_cla.sql]
-    YAML[fact_<c>_yaml_user + dim_company_info] --> U2[user_company_by_yaml.sql]
+    CLA[fact_%c%_cla_user] --> U1[user_company_by_cla.sql]
+    YAML[fact_%c%_yaml_user<br/>+ dim_company_info] --> U2[user_company_by_yaml.sql]
     INT[fact_internal_user 内部用户] --> U3[api内部用户更新企业表.sql]
     BLUE[fact_blue_user 塔台蓝区] --> U4[塔台蓝区用户更新企业表.sql]
-    INTERNAL[fact_community_internal_company] --> U1 & U2 & U4
+    INTERNAL[fact_community_<br/>internal_company] --> U1 & U2 & U4
 
-    U1 & U2 & U3 & U4 --> NEW[new_dws_<c>_user_company]
-    NEW --> BASE[user_company_base.sql RENAME]
-    BASE --> DWS_UC[dws_<c>_user_company]
+    U1 & U2 & U3 & U4 --> NEW[new_dws_%c%_user_company]
+    NEW --> BASE[user_company_base.sql<br/>RENAME]
+    BASE --> DWS_UC[dws_%c%_user_company]
     DWS_UC --> UPD[update_company_info.sql]
-    UPD --> DWS_C[dws_<c>_contribute.company]
-    DWS_C --> USERS[dwm_contribute_user* / dws_contribute_*_daily]
+    UPD --> DWS_C[dws_%c%_contribute<br/>.company]
+    DWS_C --> USERS[dwm_contribute_user* /<br/>dws_contribute_*_daily]
 ```
 
 ### 4.4 Issue 首响/关闭时长清洗链（事实表 → 清洗 → 汇总）
 
 ```mermaid
 graph LR
-    COM[fact_<c>_comment] --> DWMK[dwm_<c>_key_comment]
+    COM[fact_%c%_comment] --> DWMK[dwm_%c%_key_comment]
     DWMK --> |/label add triaged| LBL[first_reply_at_label]
     DWMK --> |/label add resolved| LBLC[closed_at_label]
-    OPLOG[fact_<c>_issue_operate_log] --> LOG[first_reply_at_log/closed_at_log]
-    DWS_C2[dws_<c>_contribute.first_reply_at] --> COMMENT[first_reply_at_comment]
+    OPLOG[fact_%c%_issue_<br/>operate_log] --> LOG[first_reply_at_log/<br/>closed_at_log]
+    DWS_C2[dws_%c%_contribute<br/>.first_reply_at] --> COMMENT[first_reply_at_comment]
 
-    LBL & LOG & COMMENT & LBLC --> MERGE[issue_time_merge<br/>final_first_reply_at / final_closed_at]
-    MERGE --> HOL[issue_holiday_calculation<br/>dim_day]
-    HOL --> PEN[issue_pending_calculation]
-    PEN --> STAGE5[issue_time_calculation<br/>first_reply_time / closed_time]
-    STAGE5 --> SLA[issue_response_sla / issue_closed_sla<br/>overdue_*]
-    SLA --> DWS_C3[dws_<c>_contribute]
-    DWS_C3 --> DAILY[dws_*_contribute_repo_daily 等]
+    LBL & LOG & COMMENT & LBLC --> MERGE[issue_time_merge<br/>final_first_reply_at<br/>/ final_closed_at]
+    MERGE --> HOL[issue_holiday_<br/>calculation<br/>dim_day]
+    HOL --> PEN[issue_pending_<br/>calculation]
+    PEN --> STAGE5[issue_time_calculation<br/>first_reply_time<br/>/ closed_time]
+    STAGE5 --> SLA[issue_response_sla<br/>/ issue_closed_sla<br/>overdue_*]
+    SLA --> DWS_C3[dws_%c%_contribute]
+    DWS_C3 --> DAILY[dws_*_contribute_<br/>repo_daily 等]
 ```
 
 ### 4.5 CI / Workflow / NPU / 云资源域血缘（独立于社区血缘的另一条链）
@@ -387,29 +388,29 @@ graph LR
         FCWS[fact_ci_workflow_step]
         FCTM[fact_ci_task_metric]
         FNPU[fact_custom_npu_metric]
-        FCRM[fact_cloud_resource_metric_details]
+        FCRM[fact_cloud_resource_<br/>metric_details]
         FCNR[fact_cloud_npu_resource]
-        FCRMD[fact_cloud_res_metric_manual_details]
-        FCRD[fact_cloud_resource_details]
-        FCBD[fact_cloud_billing_details]
-        FOH[fact_openlibing_api_header]
+        FCRMD[fact_cloud_res_metric_<br/>manual_details]
+        FCRD[fact_cloud_<br/>resource_details]
+        FCBD[fact_cloud_<br/>billing_details]
+        FOH[fact_openlibing_<br/>api_header]
     end
 
     subgraph 聚合层
         DOCI[dws_opensource_ci<br/>run 级聚合]
         DCWH[dws_ci_workflow_hour<br/>小时级]
-        DNPD[dws_cloud_npu_details_hour<br/>NPU 小时级]
-        DCPD[dws_cloud_cpu_details_hour<br/>CPU 小时级]
-        DMD[dwm_cloud_resource_details]
-        FND[fact_custom_npu_metric_node_day]
-        FNM[fact_custom_npu_metric_node_minute]
+        DNPD[dws_cloud_npu_<br/>details_hour<br/>NPU 小时级]
+        DCPD[dws_cloud_cpu_<br/>details_hour<br/>CPU 小时级]
+        DMD[dwm_cloud_<br/>resource_details]
+        FND[fact_custom_npu_<br/>metric_node_day]
+        FNM[fact_custom_npu_<br/>metric_node_minute]
         TTFW[dws_ci_ttfhw]
     end
 
     subgraph 服务层
-        A1[res/workflow/* · res/ci/*]
-        A2[res/npu/* · res/cluster/* · res/cpu/*]
-        A3[res/dict · res/usage/* · res/totalcost · res/month/trend]
+        A1[res/workflow/<br/>* · res/ci/*]
+        A2[res/npu/* · res/cluster/*<br/>· res/cpu/*]
+        A3[res/dict · res/usage/*<br/>· res/totalcost ·<br/>res/month/trend]
     end
 
     GH --> FCW
