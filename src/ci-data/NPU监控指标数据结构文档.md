@@ -43,6 +43,9 @@
 | `pod_npu_used` | Pod使用卡数（部分场景） | `1` |
 | `pr` | PR或工作流标识（部分场景） | `vllm-project/vllm-ascend/.github/workflows/_selected_tests_upstream.yaml@refs/pull/13069/merge` |
 | `project` | **集群标识**<br/>监控聚合查询时使用的集群标识 | `参与开源统一资源池-香港-A2(910B3)` |
+| `base_type` | NPU设备基础型号 | `910B` |
+| `region` | 地域（部分数据源有） | `香港` |
+| `domain` | 领域（部分数据源有） | `昇腾` |
 
 **重要关系**：
 - `node` 与 `community` 的绑定关系是**固定的**，一个节点始终属于一个 `community`
@@ -62,7 +65,10 @@
     "pod_name": "linux-aarch64-a2b3-1-m8kx4-runner-jhxkx-workflow",
     "pod_npu_used": "1",
     "pr": "vllm-project/vllm-ascend/.github/workflows/_selected_tests_upstream.yaml@refs/pull/13069/merge",
-    "project": "参与开源统一资源池-香港-A2(910B3)"
+    "project": "参与开源统一资源池-香港-A2(910B3)",
+    "base_type": "910B",
+    "region": "香港",
+    "domain": "昇腾"
   },
   "value": [
     1786351551.389,
@@ -94,6 +100,9 @@
 | `node` | 节点名称 | `liteserver-for-mindstudio-4` |
 | `node_total_npu` | 节点总卡数 | `8` |
 | `project` | **集群标识**<br/>监控聚合查询时使用的集群标识 | `参与开源统一资源池-香港-A2(910B3)` |
+| `base_type` | NPU设备基础型号 | `910B` |
+| `region` | 地域（部分数据源有） | `香港` |
+| `domain` | 领域（部分数据源有） | `昇腾` |
 
 **与 `custom_npu_total_used_count` 的标签差异**：
 - 该指标**不包含** `pod_name`、`pod_npu_used`、`pr` 等动态标签
@@ -113,7 +122,10 @@
     "job": "liteserver-for-mindstudio-4",
     "node": "liteserver-for-mindstudio-4",
     "node_total_npu": "8",
-    "project": "参与开源统一资源池-香港-A2(910B3)"
+    "project": "参与开源统一资源池-香港-A2(910B3)",
+    "base_type": "910B",
+    "region": "香港",
+    "domain": "昇腾"
   },
   "value": [
     1786351551.389,
