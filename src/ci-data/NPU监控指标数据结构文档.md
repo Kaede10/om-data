@@ -33,8 +33,8 @@
 | `cluster` | 物理集群名称 | `ascend-hk-001-cluster` |
 | `community` | **节点所属社区（固定归属）**<br/>表示该NPU节点物理上属于哪个社区，不随使用方改变 | `mindstudio` |
 | `account` | 云账号（部分数据源有） | `ascend_infra` |
-| `env` | 环境标识（部分数据源有） | `cloud` |
-| `type` | NPU型号（部分数据源有） | `910B3` |
+| `env` | 资源类型（部分数据源有） | `cloud` |
+| `type` | NPU设备型号（部分数据源有） | `910B3` |
 | `instance` | 采集实例地址 | `npu-exporter-hk-001.npu-exporter:9101` |
 | `job` | 采集任务名 | `ascend-hk-001-cluster` |
 | `node` | 节点名称 | `os-node-created-2dq9v` |
@@ -87,8 +87,8 @@
 | `cluster` | 物理集群名称 | `ascend-hk-001-cluster` |
 | `community` | **节点所属社区/项目组（固定归属）** | `mindstudio` |
 | `account` | 云账号 | `ascend_infra` |
-| `env` | 环境标识 | `cloud` |
-| `type` | NPU型号 | `910B3` |
+| `env` | 资源类型 | `cloud` |
+| `type` | NPU设备型号 | `910B3` |
 | `instance` | 采集实例地址 | `123.60.161.138:9004` |
 | `job` | 采集任务名 | `liteserver-for-mindstudio-4` |
 | `node` | 节点名称 | `liteserver-for-mindstudio-4` |
@@ -190,7 +190,7 @@ sum by(project, community)(custom_npu_total_count)
 
 ### 3.3 标签一致性注意事项
 
-- `custom_npu_total_count` 应在节点变更时更新上报，确保其标签与 `custom_npu_total_used_count` 保持一致
+- `custom_npu_total_count` 应和 `custom_npu_total_used_count` 同频上报
 - 查询时建议使用相同的筛选条件（如相同的 `project`、`cluster` 等）进行关联计算
 - 由于 `community` 是固定标签，在节点归属不变的情况下，`custom_npu_total_count` 中的 `community` 值应与 `custom_npu_total_used_count` 保持一致
 - **特别注意**：`custom_npu_total_used_count` 存在 `pod_name`、`pod_npu_used`、`pr` 等动态标签，这些标签不在 `custom_npu_total_count` 中。进行除法运算前，务必使用 `sum by(...)` 或 `sum without(...)` 去除这些不匹配的标签，确保两组时间序列的标签集一致
