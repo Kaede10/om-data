@@ -47,6 +47,8 @@
 | `region` | 地域（部分数据源有） | `香港` |
 | `domain` | 领域（部分数据源有） | `昇腾` |
 
+> `部分数据源有` 表示某些数据缺失，上报有误， 需要处理
+
 **重要关系**：
 - `node` 与 `community` 的绑定关系是**固定的**，一个节点始终属于一个 `community`
 - 当某个社区（如MindStudio）的节点被其他社区（如vllm）的项目使用时，`community` 标签仍为 `mindstudio`
@@ -84,7 +86,7 @@
 ### 2.1 指标说明
 - **类型**：Gauge（仪表盘类型）
 - **含义**：当前可用的NPU总卡数
-- **上报频率**：和custom_npu_total_used_count同频上报，时间戳一致
+- **上报频率**：和`custom_npu_total_used_count` **同频上报**，时间戳一致
 
 ### 2.2 标签说明
 
@@ -202,7 +204,7 @@ sum by(project, community)(custom_npu_total_count)
 
 ### 3.3 标签一致性注意事项
 
-- `custom_npu_total_count` 应和 `custom_npu_total_used_count` 同频上报
+- `custom_npu_total_count` 应和 `custom_npu_total_used_count`  **同频上报**
 - 查询时建议使用相同的筛选条件（如相同的 `project`、`cluster` 等）进行关联计算
 - 由于 `community` 是固定标签，在节点归属不变的情况下，`custom_npu_total_count` 中的 `community` 值应与 `custom_npu_total_used_count` 保持一致
 - **特别注意**：`custom_npu_total_used_count` 存在 `pod_name`、`pod_npu_used`、`pr` 等动态标签，这些标签不在 `custom_npu_total_count` 中。进行除法运算前，务必使用 `sum by(...)` 或 `sum without(...)` 去除这些不匹配的标签，确保两组时间序列的标签集一致
