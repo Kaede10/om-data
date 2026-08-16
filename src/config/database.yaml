@@ -1,0 +1,15 @@
+database:
+  host: localhost
+  port: 5432
+  database: om_data
+  user: postgres
+  password: postgres
+
+connection_pool:
+  min_connections: 1
+  max_connections: 10
+  connection_timeout: 30
+
+logging:
+  level: INFO
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
