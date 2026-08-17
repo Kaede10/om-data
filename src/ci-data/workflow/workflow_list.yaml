@@ -1,4 +1,4 @@
-# 配置了 device_type: "NPU" 才会统计 E2E 的时间
+# 配置
 workflow:
   github_token: 
   github_base_api: "https://api.github.com"
