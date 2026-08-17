@@ -1,0 +1,198 @@
+# 配置了 device_type: "NPU" 才会统计 E2E 的时间
+workflow:
+  github_token: 
+  github_base_api: "https://api.github.com"
+  table_name: fact_ci_workflow
+  metadata_table: fact_ci_metadata
+  collect_from:
+  repos: hiyouga/LLaMA-Factory,modelscope/ms-swift,sgl-project/sglang,sgl-project/sgl-kernel-npu,vllm-project/vllm-ascend,nv-action/vllm-benchmarks,tile-ai/tilelang-mlir-ascend,triton-lang/triton-ascend,vllm-project/vllm-omni,verl-project/verl,ascend/pytorch,vllm-project/vllm,tile-ai/tilelang,triton-lang/triton
+
+  step_configs:
+  # ====================
+  # hiyouga/LLaMA-Factory
+  # 大模型训练框架，支持 Ascend NPU
+  # ====================
+  - org: "hiyouga"
+    repo: "LLaMA-Factory"
+    download_steps:
+    - "install uv"
+    - "Install dependencies"
+    - "Install node"
+    prepare_steps:
+    device_configs:
+    - workflow_name: "tests_npu"
+      device_type: "NPU"
+
+  # ====================
+  # modelscope/ms-swift
+  # ModelScope Swift 大模型训练/推理框架
+  # ====================
+  - org: "modelscope"
+    repo: "ms-swift"
+    download_steps:
+    prepare_steps:
+    device_configs:
+    - workflow_name: "citest-npu"
+      device_type: "NPU"
+
+  # ====================
+  # sgl-project/sglang
+  # SGLang 高性能大模型推理框架
+  # ====================
+  - org: "sgl-project"
+    repo: "sglang"
+    download_steps:
+    - "Install dependencies"
+    workflow_event_types:
+      "Nightly Test (NPU)": ["pull request", "schedule"]
+    prepare_steps:
+    device_configs:
+    - workflow_name: "PR Test (NPU)"
+      device_type: "NPU"
+    - workflow_name: "Nightly Test (NPU)"
+      device_type: "NPU"
+
+  # ====================
+  # sgl-project/sgl-kernel-npu
+  # SGLang NPU Kernel 专用仓库
+  # ====================
+  - org: "sgl-project"
+    repo: "sgl-kernel-npu"
+    workflow_event_types:
+      "Daily Enumerate Tests (Ascend NPU)": ["pull request", "schedule"]
+    download_steps:
+    - "Install dependencies"
+    prepare_steps:
+    - "Prepare Deepep"
+    device_configs:
+    - workflow_name: "PR Test for SGL-KERNEL-NPU DeepEP (Ascend NPU)"
+      device_type: "NPU"
+    - workflow_name: "Daily Enumerate Tests (Ascend NPU)"
+      device_type: "NPU"
+
+  # ====================
+  # vllm-project/vllm-ascend
+  # vLLM Ascend NPU 适配仓库
+  # ====================
+  - org: "vllm-project"
+    repo: "vllm-ascend"
+    download_steps:
+    - "Install system dependencies"
+    - "Install vllm-project/vllm-ascend from source"
+    - "Install vllm-project/vllm-ascend with device"
+    - "Install vllm-project/vllm-ascend no device"
+    prepare_steps:
+    - "Install vllm-project/vllm-ascend"
+    device_configs:
+    - workflow_name: "E2E-Full"
+      device_type: "NPU"
+    - workflow_name: "Selected Tests"
+      device_type: "NPU"
+    - workflow_name: "E2E"
+      device_type: "NPU"
+
+  # ====================
+  # nv-action/vllm-benchmarks
+  # vLLM 性能基准测试仓库
+  # ====================
+  - org: "nv-action"
+    repo: "vllm-benchmarks"
+    download_steps:
+    - "Install system dependencies"
+    - "Install vllm-project/vllm from source"
+    prepare_steps:
+    - "Install vllm-project/vllm-ascend"
+    device_configs:
+    - workflow_name: "E2E-Full"
+      device_type: "NPU"
+    - workflow_name: "E2E-Light"
+      device_type: "NPU"
+    - workflow_name: "e2e test"
+      device_type: "NPU"
+
+  # ====================
+  # volcengine/verl
+  # Volcengine VERL 强化学习框架
+  # ====================
+  - org: "volcengine"
+    repo: "verl"
+    download_steps:
+    - "Install the current repository"
+    prepare_steps:
+    device_configs:
+    - workflow_name: "e2e_ascend"
+      device_type: "NPU"
+
+  # ====================
+  # tile-ai/tilelang-ascend
+  # TileLang Ascend NPU 编译框架
+  # ====================
+  - org: "tile-ai"
+    repo: "tilelang-mlir-ascend"
+    download_steps:
+    - "Install tilelang and test dependencies"
+    prepare_steps:
+
+    device_configs:
+    - workflow_name: "Base CI"
+      device_type: "NPU"
+    - workflow_name: "AscendNPU-IR CI"
+      device_type: "NPU"
+
+  - org: "triton-lang"
+    repo: "triton-ascend"
+    download_steps:
+    - "Download and install Bisheng compiler"
+    prepare_steps:
+    - "Build and install triton-ascend"
+    device_configs:
+    - workflow_name: "Integration Tests"
+      device_type: "NPU"
+
+  - org: "tile-ai"
+    repo: "tilelang"
+    download_steps:
+    - "Setup venv"
+    prepare_steps:
+    - "Install project (wheel form)"
+    device_configs:
+    - workflow_name: "CI"
+      device_type: "NPU"
+
+  - org: "triton-lang"
+    repo: "triton"
+    download_steps:
+    - "Setup Python environment for NVIDIA self-hosted runners"
+    - "Install dependencies"
+    prepare_steps:
+    - "Install Triton"
+    device_configs:
+    - workflow_name: "Integration Tests"
+      device_type: "NPU"
+
+
+  - org: "ascend"
+    repo: "pytorch"
+    download_steps:
+    - "Download built torch_npu wheel"
+    - "Download prepared test source"
+    - "Install test dependencies"
+    prepare_steps:
+    device_configs:
+    - workflow_name: "PyTorch NPU Full Test (v2.7.1)"
+      device_type: "NPU"
+
+  - org: "vllm-project"
+    repo: "vllm-omni"
+    download_steps:
+    prepare_steps:
+    device_configs:
+
+  - org: "verl-project"
+    repo: "verl"
+    download_steps:
+    - "Install the current repository"
+    prepare_steps:
+    device_configs:
+    - workflow_name: e2e_ascend
+      device_type: "NPU"
