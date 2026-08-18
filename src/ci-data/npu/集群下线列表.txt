@@ -1,0 +1,17 @@
+应用使能
+Ascend统一资源池-贵阳-310
+Ascend统一资源池-贵阳-310P
+Ascend统一资源池-贵阳-A2(910B1)
+Ascend统一资源池-贵阳-A2(910B4)
+Ascend统一资源池-乌兰察布-A2(910B4)
+CANN nightly-苏州-A3
+CANN-广州-A2(910B4)
+DrivingSDK
+FrameworkPTAdapter PR-苏州-A3
+MindCluster/SDK nightly-苏州-A3
+MindIE
+MindIE-贵阳-A2(910B4)
+MindStudio
+PTA
+triton ci-贵阳-A3
+vLLM-贵阳-A2(910B4)
