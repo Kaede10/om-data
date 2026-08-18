@@ -59,7 +59,7 @@ workflow:
   - org: "sgl-project"
     repo: "sgl-kernel-npu"
     workflow_event_types:
-      "Daily Enumerate Tests (Ascend NPU)": "schedule"]
+      "Daily Enumerate Tests (Ascend NPU)": ["schedule"]
     download_steps:
     - "Install dependencies"
     prepare_steps:
