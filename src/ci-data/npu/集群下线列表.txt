@@ -14,4 +14,15 @@ MindIE-贵阳-A2(910B4)
 MindStudio
 PTA
 triton ci-贵阳-A3
-vLLM-贵阳-A2(910B4)
+CANN PR-苏州-A2(910B3)
+CANN nightly-苏州-A2(910B3)
+FrameworkPTAdapter PR-苏州-A2(910B3)
+MindCluster/SDK PR-苏州-A2(910B2)
+MindCluster/SDK nightly-苏州-A2(910B3)
+MindCluster/SDK nightly-苏州-A2(910B4)
+MindIE PR-苏州-A2(910B4)
+MindSpeed PR-苏州-A2(910B2)
+MindSpeed PR-苏州-A2(910B3)
+Pytorch op-plugin torchair共用资源池-苏州-A2(910B3)
+Verl-苏州-A2(910B3)
+门禁UT和编译资源池-苏州-310P3
