@@ -44,7 +44,7 @@ workflow:
     download_steps:
     - "Install dependencies"
     workflow_event_types:
-      "Nightly Test (NPU)": ["pull request", "schedule"]
+      "Nightly Test (NPU)": ["schedule"]
     prepare_steps:
     device_configs:
     - workflow_name: "PR Test (NPU)"
@@ -59,7 +59,7 @@ workflow:
   - org: "sgl-project"
     repo: "sgl-kernel-npu"
     workflow_event_types:
-      "Daily Enumerate Tests (Ascend NPU)": ["pull request", "schedule"]
+      "Daily Enumerate Tests (Ascend NPU)": "schedule"]
     download_steps:
     - "Install dependencies"
     prepare_steps:
