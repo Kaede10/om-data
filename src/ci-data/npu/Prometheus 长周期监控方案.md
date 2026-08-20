@@ -35,10 +35,6 @@
 | **SwanLab** | 训练追踪平台 | NVIDIA GPU / 昇腾NPU | Python SDK (gRPC + Protobuf) | **云端自研存储** (关系型DB + 对象存储 + 时序DB) | 自研全链路存储方案，非基于Prometheus生态。 |
 | **Databricks** | Databricks平台 | NVIDIA GPU | 托管Prometheus + 数据湖 | **M3/Pantheon (自研) + Unity Catalog (数据湖表)** | 大规模内部使用自研M3/Pantheon；客户指标可存储于数据湖表中。 |
 
-> **大规模生产环境均采用双存储/双看板分离架构**
->  **长周期查询必须使用预聚合指标**（5m/1h），禁止原始指标直接查 30 天以上数据
-> **VictoriaMetrics 与 Thanos 是两大主流方案**
-
 ---
 
 ## 三、方案总览
@@ -59,7 +55,6 @@
 | 查询兼容 | 100% 兼容 Prometheus API/PromQL，前端无改造 |
 | 权限收敛 | 仅自研 Vue 对外提供服务，后端屏蔽存储细节 |
 | 长周期优化 | 预聚合 10m/1h 等指标，避免大时间范围查询超时 |
-| 双看板分离 | 实时看板仅查 3~7 天内数据，长周期看板仅用预聚合指标 |
 
 ---
 
