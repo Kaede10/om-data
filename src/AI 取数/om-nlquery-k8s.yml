@@ -105,13 +105,37 @@ spec:
             requests: { cpu: 250m, memory: 512Mi }
             limits: { cpu: "1", memory: 2Gi }
           volumeMounts:
+            - name: hf-cache
+              mountPath: /home/ccdev/.cache/huggingface
+      containers:
+        - name: wren
+          image: <image>   # 例 swr.cn-north-4.myhuaweicloud.com/opensourceway/om-nlquery-wren:v1
+          ports:
+            - containerPort: 8910
+          env:
+            # 非密钥类配置（密钥走 /wren-secrets/secrets.yml）
+            - name: LLM_BASE_URL
+              value: https://open.bigmodel.cn/api/coding/paas/v4
+            - name: CHATBI_LLM_MODEL
+              value: glm-5.3
+            - name: HF_HOME
+              value: /home/ccdev/.cache/huggingface
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "2", memory: 4Gi }   # memory index 峰值 ~1.8G
+          securityContext:
+            runAsUser: 1000        # 容器内非 root（claude agent 必须）
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
             - name: wren-secrets
               mountPath: /wren-secrets
               readOnly: true
             - name: wren-state
-              mountPath: /wren/.wren
+              mountPath: /wren/.wren     # LanceDB 索引（持久化）
             - name: hf-cache
-              mountPath: /home/ccdev/.cache/huggingface
+              mountPath: /home/ccdev/.cache/huggingface  # embedding 模型缓存（持久化）
           readinessProbe:
             httpGet: { path: /healthz, port: 8910 }
             initialDelaySeconds: 15
