@@ -1,0 +1,190 @@
+# om-nlquery wren 服务 K8s 部署样例（持久化版本）
+# 镜像：SWR 构建后替换 <image>
+# Secret 清单（全部运行时注入，不入镜像不入仓）：
+#   wren-pg      keys: password          # 只读账号 wren_ro 的密码
+#   wren-glm     keys: GLM_API_KEY        # 智谱 key（Coding Plan 走 anthropic 兼容端点）
+#   wren-clone   keys: token              # 采纳沉淀推 wren-memory 分支用（可选）
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wren-pg
+  namespace: om-datacenter
+type: Opaque
+stringData:
+  password: CHANGE_ME   # kubectl create secret ... 或 sealed-secrets 注入真值
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wren-glm
+  namespace: om-datacenter
+type: Opaque
+stringData:
+  GLM_API_KEY: CHANGE_ME
+---
+# PersistentVolumeClaim: LanceDB 向量数据库 + 运行时状态
+# 容量 5Gi 足够（LanceDB 2347 模型约 500MB，预留增长空间）
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wren-state
+  namespace: om-datacenter
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  # storageClassName: your-storage-class  # 按集群实际情况取消注释
+---
+# PersistentVolumeClaim: HuggingFace 模型缓存
+# embedding 模型 ~470MB，预留 2Gi
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wren-hf-cache
+  namespace: om-datacenter
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  # storageClassName: your-storage-class  # 按集群实际情况取消注释
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wren-nlquery
+  namespace: om-datacenter
+  labels:
+    app: wren-nlquery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wren-nlquery
+  template:
+    metadata:
+      labels:
+        app: wren-nlquery
+    spec:
+      automountServiceAccountToken: false
+      initContainers:
+        # 首次启动时把 embedding 模型下载进共享 PVC（HF_HOME）；后续复用，不重复下载
+        - name: hf-model-init
+          image: <image>   # 与主容器同镜像（含 wrenai[memory] → sentence_transformers）
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              HF="/home/ccdev/.cache/huggingface"
+              SENTINEL="$HF/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2"
+              if [ -d "$SENTINEL" ]; then
+                echo "[init] model cache present, skip download"
+                exit 0
+              fi
+              echo "[init] downloading embedding model to $HF ..."
+              python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2'); print('done')"
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "1", memory: 2Gi }
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /home/ccdev/.cache/huggingface
+      containers:
+        - name: wren
+          image: <image>   # 例 swr.cn-north-4.myhuaweicloud.com/opensourceway/om-nlquery-wren:v1
+          ports:
+            - containerPort: 8910
+          env:
+            - name: PGHOST
+              value: postgresql
+            - name: PGUSER
+              value: wren_ro          # 原则：只读账号
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef: { name: wren-pg, key: password }
+            - name: GLM_API_KEY
+              valueFrom:
+                secretKeyRef: { name: wren-glm, key: GLM_API_KEY }
+            - name: LLM_BASE_URL
+              value: https://open.bigmodel.cn/api/coding/paas/v4
+            - name: CHATBI_LLM_MODEL
+              value: glm-5.3
+            # HuggingFace 缓存目录（持久化 embedding 模型）
+            - name: HF_HOME
+              value: /home/ccdev/.cache/huggingface
+            # 如果已预下载模型到 PVC，可跳过首次下载
+            # - name: WREN_SKIP_MODEL_DOWNLOAD
+            #   value: "true"
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "2", memory: 4Gi }   # memory index 峰值 ~1.8G
+          securityContext:
+            runAsUser: 1000        # 容器内非 root（claude agent 必须）
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - name: wren-state
+              mountPath: /wren/.wren     # LanceDB 索引（持久化）
+            - name: hf-cache
+              mountPath: /home/ccdev/.cache/huggingface  # embedding 模型缓存（持久化）
+            - name: clone-token
+              mountPath: /run/secrets/clone
+              readOnly: true
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8910 }
+            initialDelaySeconds: 15
+            periodSeconds: 30
+      volumes:
+        - name: wren-state
+          persistentVolumeClaim:
+            claimName: wren-state      # LanceDB 向量数据库持久化（重启免重建索引）
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: wren-hf-cache   # HuggingFace 模型缓存持久化
+        - name: clone-token
+          secret:
+            secretName: wren-clone
+            optional: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wren-nlquery
+  namespace: om-datacenter
+spec:
+  selector:
+    app: wren-nlquery
+  ports:
+    - name: http
+      port: 8910
+      targetPort: 8910
+---
+# Ingress（公网访问 + 前端跨域读 SSE；wren_server 已带 CORS）
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wren-nlquery
+  namespace: om-datacenter
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: wren-nlquery.preview.test.osinfra.cn   # 上生产换正式域名
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wren-nlquery
+                port:
+                  number: 8910
