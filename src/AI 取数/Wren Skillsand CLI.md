@@ -5,6 +5,9 @@
 | :--- | :--- |
 | `wren context import dbt` | 从 dbt 的 `manifest.json` 和 `catalog.json` 生成 Wren 项目。 |
 | `wren context upgrade` | 将项目升级到最新的布局结构（如 v4→v5）。支持 `--dry-run` 预览。 |
+| `wren context show` | 显示当前项目详情。 |
+| `wren context validate` | 验证项目 YAML 文件结构。 |
+| `wren context build` |编译项目生成 `target/mdl.json`。 |
 | `wren profile import dbt` | 从 dbt 的 `profiles.yml` 中导入目标连接配置。 |
 
 #### 2. 连接与配置
