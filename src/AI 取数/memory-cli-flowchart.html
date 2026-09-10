@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wren AI Memory 模块 — 完整流程图</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #232733;
+    --border: #2d3140;
+    --text: #e4e7ef;
+    --text2: #8b90a0;
+    --cyan: #22d3ee;
+    --emerald: #34d399;
+    --violet: #a78bfa;
+    --rose: #fb7185;
+    --amber: #fbbf24;
+    --blue: #60a5fa;
+    --orange: #fb923c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace; overflow-x: hidden; }
+  
+  .header { padding: 32px 40px 16px; border-bottom: 1px solid var(--border); }
+  .header h1 { font-size: 20px; font-weight: 600; color: var(--cyan); }
+  .header p { font-size: 12px; color: var(--text2); margin-top: 4px; }
+  
+  .tabs { display: flex; gap: 2px; padding: 8px 40px; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .tab { padding: 8px 16px; font-size: 11px; color: var(--text2); background: transparent; border: none; cursor: pointer; border-radius: 6px; white-space: nowrap; font-family: inherit; }
+  .tab:hover { background: var(--surface2); color: var(--text); }
+  .tab.active { background: var(--cyan); color: var(--bg); font-weight: 600; }
+  
+  .view { display: none; padding: 24px 40px; }
+  .view.active { display: block; }
+  
+  /* Architecture View */
+  .arch-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+  
+  .phase { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .phase-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .phase-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .phase-title { font-size: 14px; font-weight: 600; }
+  .phase-desc { font-size: 11px; color: var(--text2); }
+  
+  .cmd-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .cmd-chip { padding: 6px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; cursor: pointer; transition: all 0.15s; }
+  .cmd-chip:hover { border-color: var(--cyan); color: var(--cyan); transform: translateY(-1px); }
+  .cmd-chip.selected { border-color: var(--cyan); background: rgba(34,211,238,0.1); color: var(--cyan); }
+  
+  /* Flow Detail Panel */
+  .detail-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-top: 16px; display: none; }
+  .detail-panel.active { display: block; }
+  .detail-title { font-size: 16px; font-weight: 600; color: var(--cyan); margin-bottom: 4px; }
+  .detail-signature { font-size: 12px; color: var(--amber); background: var(--surface2); padding: 8px 12px; border-radius: 6px; margin: 12px 0; border-left: 3px solid var(--amber); white-space: pre-wrap; word-break: break-all; }
+  
+  .section-label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px; }
+  
+  .flow-steps { list-style: none; counter-reset: step; }
+  .flow-steps li { counter-increment: step; padding: 8px 12px 8px 36px; position: relative; font-size: 12px; line-height: 1.6; border-left: 2px solid var(--border); margin-left: 10px; }
+  .flow-steps li::before { content: counter(step); position: absolute; left: -10px; top: 8px; width: 20px; height: 20px; background: var(--surface2); border: 1px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--cyan); font-weight: 600; }
+  .flow-steps li:last-child { border-left-color: transparent; }
+  
+  .decision-box { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.3); border-radius: 8px; padding: 12px 16px; margin: 8px 0; font-size: 12px; }
+  .decision-box .label { color: var(--amber); font-weight: 600; font-size: 11px; margin-bottom: 4px; }
+  
+  .example-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+  .example-box { padding: 10px 12px; border-radius: 8px; font-size: 11px; line-height: 1.5; }
+  .example-box.correct { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.3); }
+  .example-box.incorrect { background: rgba(251,113,133,0.08); border: 1px solid rgba(251,113,133,0.3); }
+  .example-box .tag { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .example-box.correct .tag { color: var(--emerald); }
+  .example-box.incorrect .tag { color: var(--rose); }
+  .example-box code { display: block; color: var(--text); white-space: pre-wrap; word-break: break-all; }
+  .example-box .err { color: var(--rose); font-size: 10px; margin-top: 4px; }
+  
+  .edge-cases { background: var(--surface2); border-radius: 8px; padding: 12px 16px; margin: 8px 0; font-size: 11px; line-height: 1.8; }
+  .edge-cases li { list-style: none; padding-left: 16px; position: relative; }
+  .edge-cases li::before { content: '•'; position: absolute; left: 0; color: var(--violet); }
+  
+  /* Data Flow SVG */
+  .svg-container { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; overflow-x: auto; }
+  .svg-container svg { display: block; margin: 0 auto; }
+  
+  /* Pipeline View */
+  .pipeline { display: flex; flex-direction: column; gap: 0; align-items: center; padding: 20px 0; }
+  .pipeline-stage { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 24px; width: 100%; max-width: 800px; position: relative; }
+  .pipeline-stage .stage-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .pipeline-stage .stage-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+  .pipeline-stage .stage-title { font-size: 14px; font-weight: 600; }
+  .pipeline-arrow { width: 2px; height: 32px; background: var(--border); position: relative; }
+  .pipeline-arrow::after { content: ''; position: absolute; bottom: -4px; left: -4px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid var(--border); }
+  
+  .stage-items { display: flex; flex-wrap: wrap; gap: 6px; }
+  .stage-item { padding: 4px 10px; background: var(--surface2); border-radius: 6px; font-size: 11px; }
+  
+  /* Subsystem cards */
+  .subsys-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+  .subsys-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .subsys-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .subsys-card .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .subsys-card pre { background: var(--surface2); padding: 12px; border-radius: 8px; font-size: 10px; line-height: 1.6; overflow-x: auto; color: var(--text2); }
+  .subsys-card ul { list-style: none; font-size: 11px; line-height: 1.8; }
+  .subsys-card ul li { padding-left: 14px; position: relative; }
+  .subsys-card ul li::before { content: '→'; position: absolute; left: 0; color: var(--cyan); }
+  
+  @media (max-width: 768px) {
+    .header, .tabs, .view { padding-left: 16px; padding-right: 16px; }
+    .example-grid { grid-template-columns: 1fr; }
+    .subsys-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Wren AI Memory 模块 — 完整流程图</h1>
+  <p>13 个 CLI 命令 · 5 个子系统 · 关键决策点 · 正确/错误示例</p>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" data-view="overview">全局架构</button>
+  <button class="tab" data-view="pipeline">查询流水线</button>
+  <button class="tab" data-view="indexing">索引管线</button>
+  <button class="tab" data-view="commands">命令详解</button>
+  <button class="tab" data-view="subsystems">子系统</button>
+</div>
+
+<!-- ==================== 全局架构 ==================== -->
+<div class="view active" id="view-overview">
+  <div class="svg-container">
+    <svg viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg" style="max-width:900px;width:100%">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#4b5563"/>
+        </marker>
+        <marker id="arrow-cyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#22d3ee"/>
+        </marker>
+        <marker id="arrow-emerald" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#34d399"/>
+        </marker>
+        <marker id="arrow-rose" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#fb7185"/>
+        </marker>
+        <marker id="arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#fbbf24"/>
+        </marker>
+        <linearGradient id="g-cyan" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#22d3ee" stop-opacity="0.15"/><stop offset="100%" stop-color="#22d3ee" stop-opacity="0.03"/></linearGradient>
+        <linearGradient id="g-emerald" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#34d399" stop-opacity="0.15"/><stop offset="100%" stop-color="#34d399" stop-opacity="0.03"/></linearGradient>
+        <linearGradient id="g-violet" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a78bfa" stop-opacity="0.15"/><stop offset="100%" stop-color="#a78bfa" stop-opacity="0.03"/></linearGradient>
+        <linearGradient id="g-rose" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fb7185" stop-opacity="0.15"/><stop offset="100%" stop-color="#fb7185" stop-opacity="0.03"/></linearGradient>
+        <linearGradient id="g-amber" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fbbf24" stop-opacity="0.15"/><stop offset="100%" stop-color="#fbbf24" stop-opacity="0.03"/></linearGradient>
+      </defs>
+      
+      <!-- Phase boxes -->
+      <!-- Phase 1: 初始化 -->
+      <rect x="20" y="20" width="260" height="200" rx="12" fill="url(#g-cyan)" stroke="#22d3ee" stroke-opacity="0.3"/>
+      <text x="36" y="44" fill="#22d3ee" font-size="12" font-weight="600">阶段 1：初始化</text>
+      
+      <rect x="36" y="56" width="110" height="44" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="91" y="82" fill="#e4e7ef" font-size="11" text-anchor="middle">wren_context.yml</text>
+      <text x="91" y="94" fill="#8b90a0" font-size="9" text-anchor="middle">项目发现</text>
+      
+      <rect x="156" y="56" width="110" height="44" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="211" y="82" fill="#e4e7ef" font-size="11" text-anchor="middle">profiles.yml</text>
+      <text x="211" y="94" fill="#8b90a0" font-size="9" text-anchor="middle">Profile 加载</text>
+      
+      <rect x="36" y="112" width="110" height="44" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="91" y="138" fill="#e4e7ef" font-size="11" text-anchor="middle">target/mdl.json</text>
+      <text x="91" y="150" fill="#8b90a0" font-size="9" text-anchor="middle">MDL 加载</text>
+      
+      <rect x="156" y="112" width="110" height="44" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="211" y="138" fill="#e4e7ef" font-size="11" text-anchor="middle">WrenEngine</text>
+      <text x="211" y="150" fill="#8b90a0" font-size="9" text-anchor="middle">引擎构建</text>
+      
+      <rect x="96" y="168" width="130" height="36" rx="8" fill="#1a1d27" stroke="#22d3ee" stroke-opacity="0.4"/>
+      <text x="161" y="190" fill="#22d3ee" font-size="10" text-anchor="middle">MemoryStore 初始化</text>
+      
+      <!-- Phase 2: 索引构建 -->
+      <rect x="300" y="20" width="280" height="200" rx="12" fill="url(#g-emerald)" stroke="#34d399" stroke-opacity="0.3"/>
+      <text x="316" y="44" fill="#34d399" font-size="12" font-weight="600">阶段 2：索引构建</text>
+      
+      <rect x="316" y="56" width="120" height="44" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="376" y="82" fill="#e4e7ef" font-size="11" text-anchor="middle">extract_schema_items</text>
+      <text x="376" y="94" fill="#8b90a0" font-size="9" text-anchor="middle">Schema 提取</text>
+      
+      <rect x="448" y="56" width="120" height="44" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="508" y="82" fill="#e4e7ef" font-size="11" text-anchor="middle">embeddings.py</text>
+      <text x="508" y="94" fill="#8b90a0" font-size="9" text-anchor="middle">向量化 ONNX/ST</text>
+      
+      <rect x="316" y="112" width="120" height="44" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="376" y="138" fill="#e4e7ef" font-size="11" text-anchor="middle">generate_seed_queries</text>
+      <text x="376" y="150" fill="#8b90a0" font-size="9" text-anchor="middle">种子 NL→SQL</text>
+      
+      <rect x="448" y="112" width="120" height="44" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="508" y="138" fill="#e4e7ef" font-size="11" text-anchor="middle">load_query_pairs</text>
+      <text x="508" y="150" fill="#8b90a0" font-size="9" text-anchor="middle">Markdown 加载</text>
+      
+      <rect x="376" y="168" width="130" height="36" rx="8" fill="#1a1d27" stroke="#34d399" stroke-opacity="0.4"/>
+      <text x="441" y="190" fill="#34d399" font-size="10" text-anchor="middle">LanceDB 写入</text>
+      
+      <!-- Phase 3: 查询流水线 -->
+      <rect x="20" y="240" width="560" height="180" rx="12" fill="url(#g-violet)" stroke="#a78bfa" stroke-opacity="0.3"/>
+      <text x="36" y="264" fill="#a78bfa" font-size="12" font-weight="600">阶段 3：查询流水线</text>
+      
+      <!-- Query flow boxes -->
+      <rect x="36" y="276" width="90" height="40" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="81" y="300" fill="#e4e7ef" font-size="10" text-anchor="middle">用户提问</text>
+      
+      <line x1="126" y1="296" x2="146" y2="296" stroke="#4b5563" marker-end="url(#arrow)"/>
+      
+      <rect x="146" y="276" width="90" height="40" rx="8" fill="#1a1d27" stroke="#a78bfa" stroke-opacity="0.5"/>
+      <text x="191" y="292" fill="#e4e7ef" font-size="10" text-anchor="middle">Memory</text>
+      <text x="191" y="304" fill="#8b90a0" font-size="8" text-anchor="middle">Fetch + Recall</text>
+      
+      <line x1="236" y1="296" x2="256" y2="296" stroke="#4b5563" marker-end="url(#arrow)"/>
+      
+      <rect x="256" y="276" width="90" height="40" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="301" y="292" fill="#e4e7ef" font-size="10" text-anchor="middle">SQL 生成</text>
+      <text x="301" y="304" fill="#8b90a0" font-size="8" text-anchor="middle">Agent 输出</text>
+      
+      <line x1="346" y1="296" x2="366" y2="296" stroke="#4b5563" marker-end="url(#arrow)"/>
+      
+      <rect x="366" y="276" width="90" height="40" rx="8" fill="#1a1d27" stroke="#fbbf24" stroke-opacity="0.5"/>
+      <text x="411" y="292" fill="#e4e7ef" font-size="10" text-anchor="middle">CTE 重写</text>
+      <text x="411" y="304" fill="#8b90a0" font-size="8" text-anchor="middle">wren-core</text>
+      
+      <line x1="456" y1="296" x2="476" y2="296" stroke="#4b5563" marker-end="url(#arrow)"/>
+      
+      <rect x="476" y="276" width="90" height="40" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="521" y="292" fill="#e4e7ef" font-size="10" text-anchor="middle">执行结果</text>
+      <text x="521" y="304" fill="#8b90a0" font-size="8" text-anchor="middle">PyArrow Table</text>
+      
+      <!-- Feedback arrow -->
+      <path d="M 521 316 L 521 370 L 191 370 L 191 316" stroke="#fb7185" stroke-opacity="0.5" fill="none" stroke-dasharray="4" marker-end="url(#arrow-rose)"/>
+      <text x="356" y="384" fill="#fb7185" font-size="9" text-anchor="middle">确认存储 → write_query_markdown + store_query</text>
+      
+      <!-- Phase 4: 反馈闭环 -->
+      <rect x="20" y="440" width="560" height="160" rx="12" fill="url(#g-rose)" stroke="#fb7185" stroke-opacity="0.3"/>
+      <text x="36" y="464" fill="#fb7185" font-size="12" font-weight="600">阶段 4：反馈闭环</text>
+      
+      <rect x="36" y="476" width="130" height="40" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="101" y="492" fill="#e4e7ef" font-size="10" text-anchor="middle">write_query_markdown</text>
+      <text x="101" y="504" fill="#8b90a0" font-size="8" text-anchor="middle">knowledge/sql/*.md</text>
+      
+      <rect x="180" y="476" width="130" height="40" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="245" y="492" fill="#e4e7ef" font-size="10" text-anchor="middle">sync_markdown_queries</text>
+      <text x="245" y="504" fill="#8b90a0" font-size="8" text-anchor="middle">upsert + forget stale</text>
+      
+      <rect x="324" y="476" width="110" height="40" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="379" y="492" fill="#e4e7ef" font-size="10" text-anchor="middle">LanceDB 索引</text>
+      <text x="379" y="504" fill="#8b90a0" font-size="8" text-anchor="middle">query_history</text>
+      
+      <rect x="448" y="476" width="110" height="40" rx="8" fill="#1a1d27" stroke="#fb7185" stroke-opacity="0.4"/>
+      <text x="503" y="492" fill="#fb7185" font-size="10" text-anchor="middle">未来召回</text>
+      <text x="503" y="504" fill="#8b90a0" font-size="8" text-anchor="middle">few-shot 示例</text>
+      
+      <!-- Watch loop -->
+      <rect x="600" y="20" width="280" height="580" rx="12" fill="url(#g-amber)" stroke="#fbbf24" stroke-opacity="0.3"/>
+      <text x="616" y="44" fill="#fbbf24" font-size="12" font-weight="600">监控 & 同步</text>
+      
+      <rect x="616" y="56" width="120" height="36" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="676" y="78" fill="#e4e7ef" font-size="10" text-anchor="middle">watch_loop</text>
+      
+      <rect x="748" y="56" width="120" height="36" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="808" y="78" fill="#e4e7ef" font-size="10" text-anchor="middle">compute_fingerprint</text>
+      
+      <line x1="676" y1="92" x2="676" y2="110" stroke="#4b5563" marker-end="url(#arrow)"/>
+      <rect x="616" y="110" width="252" height="36" rx="8" fill="#1a1d27" stroke="#fbbf24" stroke-opacity="0.3"/>
+      <text x="742" y="132" fill="#fbbf24" font-size="10" text-anchor="middle">SHA-256(path + size + mtime_ns)</text>
+      
+      <line x1="742" y1="146" x2="742" y2="164" stroke="#4b5563" marker-end="url(#arrow)"/>
+      <rect x="640" y="164" width="204" height="32" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="742" y="184" fill="#e4e7ef" font-size="10" text-anchor="middle">指纹变化？ → 触发 reindex</text>
+      
+      <!-- check command -->
+      <rect x="616" y="220" width="252" height="36" rx="8" fill="#1a1d27" stroke="#2d3140"/>
+      <text x="742" y="242" fill="#e4e7ef" font-size="10" text-anchor="middle">check: missing vs stale 检测</text>
+      
+      <!-- Command list -->
+      <text x="616" y="284" fill="#8b90a0" font-size="11" font-weight="600">CLI 命令:</text>
+      <text x="616" y="304" fill="#e4e7ef" font-size="10">index · store · recall · fetch</text>
+      <text x="616" y="320" fill="#e4e7ef" font-size="10">watch · list · dump · forget</text>
+      <text x="616" y="336" fill="#e4e7ef" font-size="10">load · reset · check · describe</text>
+      <text x="616" y="352" fill="#e4e7ef" font-size="10">export</text>
+      
+      <!-- Env vars -->
+      <text x="616" y="388" fill="#8b90a0" font-size="11" font-weight="600">环境变量:</text>
+      <text x="616" y="408" fill="#22d3ee" font-size="9">WREN_MEMORY_BACKEND</text>
+      <text x="616" y="424" fill="#22d3ee" font-size="9">WREN_EMBEDDING_BACKEND</text>
+      <text x="616" y="440" fill="#22d3ee" font-size="9">WREN_EMBEDDING_MODEL</text>
+      <text x="616" y="456" fill="#22d3ee" font-size="9">WREN_ONNX_MODEL_FILE</text>
+      <text x="616" y="472" fill="#22d3ee" font-size="9">WREN_HOME</text>
+      
+      <!-- Data sources -->
+      <text x="616" y="508" fill="#8b90a0" font-size="11" font-weight="600">数据存储:</text>
+      <rect x="616" y="518" width="110" height="28" rx="6" fill="#1a1d27" stroke="#34d399" stroke-opacity="0.4"/>
+      <text x="671" y="536" fill="#34d399" font-size="9" text-anchor="middle">schema_items</text>
+      <rect x="738" y="518" width="120" height="28" rx="6" fill="#1a1d27" stroke="#a78bfa" stroke-opacity="0.4"/>
+      <text x="798" y="536" fill="#a78bfa" font-size="9" text-anchor="middle">query_history</text>
+      <rect x="616" y="554" width="242" height="28" rx="6" fill="#1a1d27" stroke="#fb7185" stroke-opacity="0.4"/>
+      <text x="737" y="572" fill="#fb7185" font-size="9" text-anchor="middle">knowledge/sql/*.md (source of truth)</text>
+      
+      <!-- Connections between phases -->
+      <path d="M 280 120 L 300 120" stroke="#4b5563" marker-end="url(#arrow)"/>
+      <path d="M 440 220 L 300 240" stroke="#4b5563" marker-end="url(#arrow)"/>
+    </svg>
+  </div>
+</div>
+
+<!-- ==================== 查询流水线 ==================== -->
+<div class="view" id="view-pipeline">
+  <div class="pipeline">
+    <div class="pipeline-stage">
+      <div class="stage-header">
+        <div class="stage-num" style="background:rgba(34,211,238,0.15);color:#22d3ee">1</div>
+        <div class="stage-title" style="color:#22d3ee">用户提问</div>
+      </div>
+      <div class="stage-items">
+        <div class="stage-item">Natural Language 输入</div>
+        <div class="stage-item">→ Agent (LLM) 接收</div>
+      </div>
+    </div>
+    <div class="pipeline-arrow"></div>
+    
+    <div class="pipeline-stage">
+      <div class="stage-header">
+        <div class="stage-num" style="background:rgba(167,139,250,0.15);color:#a78bfa">2</div>
+        <div class="stage-title" style="color:#a78bfa">Memory Fetch — Schema 上下文检索</div>
+      </div>
+      <div style="font-size:11px;color:#8b90a0;margin-bottom:8px">自动选择策略：全文 vs 语义搜索</div>
+      <div class="decision-box">
+        <div class="label">⚡ 关键决策：全文 vs 搜索</div>
+        <div style="color:#e4e7ef;font-size:11px">
+          <code>describe_schema(manifest)</code> 生成纯文本<br>
+          如果 <code>len(text) ≤ 30,000 字符</code>（≈8K token）→ <strong>strategy="full"</strong>（返回完整 schema）<br>
+          否则 → <strong>strategy="search"</strong>（LanceDB ANN 搜索 schema_items 表）
+        </div>
+      </div>
+      <div class="stage-items">
+        <div class="stage-item">--type model|column|relationship|view</div>
+        <div class="stage-item">--model MODEL_NAME</div>
+        <div class="stage-item">--threshold N</div>
+      </div>
+    </div>
+    <div class="pipeline-arrow"></div>
+    
+    <div class="pipeline-stage">
+      <div class="stage-header">
+        <div class="stage-num" style="background:rgba(167,139,250,0.15);color:#a78bfa">3</div>
+        <div class="stage-title" style="color:#a78bfa">Memory Recall — 历史 NL→SQL 召回</div>
+      </div>
+      <div style="font-size:11px;color:#8b90a0;margin-bottom:8px">语义搜索历史对作为 few-shot 示例</div>
+      <div class="decision-box">
+        <div class="label">⚡ 关键决策：Grep vs LanceDB 后端</div>
+        <div style="color:#e4e7ef;font-size:11px">
+          <strong>Grep 后端：</strong>token 重叠 + 子串匹配（无依赖，线性扫描）<br>
+          <strong>LanceDB 后端：</strong>嵌入相似度 ANN 搜索（需要 memory extra，毫秒级）
+        </div>
+      </div>
+      <div class="stage-items">
+        <div class="stage-item">--limit N</div>
+        <div class="stage-item">--datasource DS</div>
+        <div class="stage-item">--output json|table</div>
+      </div>
+    </div>
+    <div class="pipeline-arrow"></div>
+    
+    <div class="pipeline-stage">
+      <div class="stage-header">
+        <div class="stage-num" style="background:rgba(251,191,36,0.15);color:#fbbf24">4</div>
+        <div class="stage-title" style="color:#fbbf24">SQL 生成</div>
+      </div>
+      <div class="stage-items">
+        <div class="stage-item">Agent 基于 schema 上下文 + 历史示例写出 MDL SQL</div>
+        <div class="stage-item">使用模型名（非原始表名）</div>
+      </div>
+    </div>
+    <div class="pipeline-arrow"></div>
+    
+    <div class="pipeline-stage">
+      <div class="stage-header">
+        <div class="stage-num" style="background:rgba(251,191,36,0.15);color:#fbbf24">5</div>
+        <div class="stage-title" style="color:#fbbf24">SQL Policy — 校验</div>
+      </div>
+      <div class="decision-box">
+        <div class="label">⚡ 关键决策：read-only 校验（始终开启）</div>
+        <div style="color:#e4e7ef;font-size:11px">
+          <code>validate_sql_policy(ast)</code> — 拒绝非 SELECT / DDL / DML / FOR UPDATE<br>
+          <code>validate_planned_sql(sql)</code> — 重写后再次校验
+        </div>
+      </div>
+    </div>
+    <div class="pipeline-arrow"></div>
+    
+    <div class="pipeline-stage">
+      <div class="stage-header">
+        <div class="stage-num" style="background:rgba(251,191,36,0.15);color:#fbbf24">6</div>
+        <div class="stage-title" style="color:#fbbf24">CTE 重写</div>
+      </div>
+      <div style="font-size:11px;color:#8b90a0;margin-bottom:8px">CTERewriter 将 MDL 模型展开为 CTE</div>
+      <div class="stage-items">
+        <div class="stage-item">parse SQL (sqlglot)</div>
+        <div class="stage-item">→ qualify_columns</div>
+        <div class="stage-item">→ ManifestExtractor.extract_by(tables)</div>
+        <div class="stage-item">→ SessionContext.transform_sql()</div>
+        <div class="stage-item">→ 每个模型生成 CTE</div>
+        <div class="stage-item">→ 视图原样作为 CTE</div>
+        <div class="stage-item">→ 注入 WITH 子句</div>
+        <div class="stage-item">→ 转译为目标方言</div>
+      </div>
+    </div>
+    <div class="pipeline-arrow"></div>
+    
+    <div class="pipeline-stage">
+      <div class="stage-header">
+        <div class="stage-num" style="background:rgba(52,211,153,0.15);color:#34d399">7</div>
+        <div class="stage-title" style="color:#34d399">执行 & 结果</div>
+      </div>
+      <div class="stage-items">
+        <div class="stage-item">Connector.query(sql, limit)</div>
+        <div class="stage-item">→ PyArrow Table</div>
+        <div class="stage-item">→ 返回给用户/Agent</div>
+      </div>
+    </div>
+    <div class="pipeline-arrow"></div>
+    
+    <div class="pipeline-stage" style="border-color:#fb7185">
+      <div class="stage-header">
+        <div class="stage-num" style="background:rgba(251,113,133,0.15);color:#fb7185">8</div>
+        <div class="stage-title" style="color:#fb7185">反馈存储</div>
+      </div>
+      <div class="decision-box" style="border-color:rgba(251,113,133,0.3);background:rgba(251,113,133,0.08)">
+        <div class="label" style="color:#fb7185">⚡ 关键决策：确认后写回</div>
+        <div style="color:#e4e7ef;font-size:11px">
+          <code>wren memory store --nl "..." --sql "..."</code><br>
+          → 写入 <code>knowledge/sql/&lt;slug&gt;.md</code>（markdown 源文件）<br>
+          → 嵌入 NL，插入 <code>query_history</code> 表<br>
+          → 未来查询可召回此对作为 few-shot 示例
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 索引管线 ==================== -->
+<div class="view" id="view-indexing">
+  <div class="subsys-grid" style="margin-bottom:24px">
+    <div class="subsys-card" style="grid-column:1/-1">
+      <h3><div class="dot" style="background:#34d399"></div>wren memory index — 完整索引流程</h3>
+      <pre>
+manifest dict
+    │
+    ├─→ [1] extract_schema_items(manifest)
+    │       │
+    │       ├─→ _model_record()           → item_type="model"
+    │       ├─→ _column_record()          → item_type="column"
+    │       ├─→ _relationship_record()    → item_type="relationship"
+    │       ├─→ _view_record()            → item_type="view"
+    │       ├─→ _cube_record()            → item_type="cube"
+    │       ├─→ _measure_record()         → item_type="measure"
+    │       ├─→ _cube_dimension_record()  → item_type="cube_dimension"
+    │       └─→ _time_dimension_record()  → item_type="time_dimension"
+    │
+    ├─→ [2] _embed_fn.compute_source_embeddings(texts) → vectors
+    │       │
+    │       ├─→ OnnxEmbeddings: tokenize → ONNX → mean pooling → L2 normalize
+    │       └─→ SentenceTransformerEmbeddings: model.encode()
+    │
+    └─→ [3] MemoryStore.index_schema()
+            │
+            ├─→ drop schema_items table (replace=True, 全量替换)
+            ├─→ create schema_items table with items + vectors
+            │
+            └─→ [4] _upsert_seed_queries() (if seed_queries=True)
+                    │
+                    ├─→ generate_seed_queries(manifest)
+                    │       │
+                    │       ├─→ _model_seeds()        → "List all {model}" 等模板
+                    │       ├─→ _relationship_seed()  → "{left} with {right} details"
+                    │       ├─→ _view_seeds()         → "Show {view} ..."
+                    │       └─→ _cube_seeds()         → "Analyze {cube} ..."
+                    │
+                    ├─→ 删除旧 seed 行 (source:seed)
+                    └─→ 插入新 seed 行</pre>
+    </div>
+  </div>
+  
+  <div class="subsys-grid">
+    <div class="subsys-card">
+      <h3><div class="dot" style="background:#22d3ee"></div>Schema 提取规则</h3>
+      <ul>
+        <li>dbtLayer: raw 的模型被跳过</li>
+        <li>计算列排除在聚合种子之外</li>
+        <li>标识符列（*_id、主键）排除在数字聚合之外</li>
+        <li>acceptedValues 生成 "Show ... where col is value" 模板</li>
+        <li>relationships 生成 JOIN 查询模板</li>
+      </ul>
+    </div>
+    <div class="subsys-card">
+      <h3><div class="dot" style="background:#a78bfa"></div>Embeddings 后端选择</h3>
+      <pre>
+WREN_EMBEDDING_BACKEND env var
+    │
+    ├─→ "onnx" 且 onnxruntime 可用
+    │       → OnnxEmbeddings (轻量, 无 torch)
+    │
+    ├─→ "sentence-transformers" 且 torch 可用
+    │       → SentenceTransformerEmbeddings
+    │
+    └─→ 自动检测
+            → 优先 onnx, 回退到 sentence-transformers</pre>
+    </div>
+    <div class="subsys-card">
+      <h3><div class="dot" style="background:#fbbf24"></div>种子查询模板示例</h3>
+      <ul>
+        <li>"List all {model}" → SELECT * FROM {model} LIMIT 100</li>
+        <li>"Total {numeric_col} in {model}" → SELECT SUM({numeric_col})</li>
+        <li>"{numeric_col} by {group_col}" → 分组聚合</li>
+        <li>"Show {model} where {col} is {value}" → 过滤查询</li>
+        <li>"{left} with {right} details" → JOIN 查询</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 命令详解 ==================== -->
+<div class="view" id="view-commands">
+  <div class="cmd-row" id="cmd-selector">
+    <div class="cmd-chip selected" data-cmd="index">index</div>
+    <div class="cmd-chip" data-cmd="store">store</div>
+    <div class="cmd-chip" data-cmd="recall">recall</div>
+    <div class="cmd-chip" data-cmd="fetch">fetch</div>
+    <div class="cmd-chip" data-cmd="watch">watch</div>
+    <div class="cmd-chip" data-cmd="list">list</div>
+    <div class="cmd-chip" data-cmd="dump">dump</div>
+    <div class="cmd-chip" data-cmd="forget">forget</div>
+    <div class="cmd-chip" data-cmd="load">load</div>
+    <div class="cmd-chip" data-cmd="reset">reset</div>
+    <div class="cmd-chip" data-cmd="check">check</div>
+    <div class="cmd-chip" data-cmd="describe">describe</div>
+    <div class="cmd-chip" data-cmd="export">export</div>
+  </div>
+  
+  <!-- index -->
+  <div class="detail-panel active" id="cmd-index">
+    <div class="detail-title">wren memory index</div>
+    <p style="font-size:12px;color:#8b90a0;margin-top:4px">完整重建内存索引：schema 提取 → 向量化 → 种子生成 → markdown 同步</p>
+    <div class="detail-signature">wren memory index [--mdl/-m MDL_PATH] [--path/-p LANCEDB_PATH]
+                  [--instructions/--no-instructions] [--no-seed] [--no-queries]</div>
+    
+    <div class="section-label">内部流程</div>
+    <ol class="flow-steps">
+      <li>检测后端：如果是 <code>grep</code>，报告对数后退出（无索引可构建）</li>
+      <li>加载 MDL manifest（<code>_load_manifest(mdl)</code>）</li>
+      <li>如果 <code>--instructions</code> 且未指定 <code>--mdl</code>：加载项目规则注入 manifest 为 <code>_instructions</code></li>
+      <li>构造 <code>MemoryStore(path=resolved_path)</code></li>
+      <li>调用 <code>mem_store.index_schema(manifest, seed_queries=True)</code><br>
+        → <code>extract_schema_items(manifest)</code> 提取 schema 片段<br>
+        → <code>_embed_fn.compute_source_embeddings(texts)</code> 向量化<br>
+        → <strong>drop 并 recreate schema_items 表</strong>（replace=True，全量替换）<br>
+        → 生成种子对，删除旧种子，插入新种子</li>
+      <li>如果 <code>--no-queries</code> 为 false：<br>
+        → <code>load_query_pairs(project_path)</code> 加载 markdown 对<br>
+        → <code>mem_store.sync_markdown_queries(md_pairs)</code> upsert + 删除过期<br>
+        → 加载遗留 <code>queries.yml</code>（标记 source:legacy）</li>
+    </ol>
+    
+    <div class="section-label">关键决策点</div>
+    <div class="decision-box">
+      <div class="label">全量替换 vs 增量更新</div>
+      <div style="color:#e4e7ef;font-size:11px">schema 索引每次都是全量重建（replace=True），不支持增量。这意味着每次 index 都会重新嵌入所有 schema 片段。</div>
+    </div>
+    <div class="decision-box">
+      <div class="label">种子查询替换逻辑</div>
+      <div style="color:#e4e7ef;font-size:11px">source:seed 标签的行会被完全替换，用户对（source:user）不受影响。这确保种子始终与当前 manifest 同步。</div>
+    </div>
+    
+    <div class="section-label">正确 / 错误示例</div>
+    <div class="example-grid">
+      <div class="example-box correct">
+        <div class="tag">✓ 正确</div>
+        <code>wren memory index
+wren memory index --mdl ./target/mdl.json
+wren memory index --no-seed --no-queries
+wren memory index --instructions</code>
+      </div>
+      <div class="example-box incorrect">
+        <div class="tag">✗ 错误</div>
+        <code>wren memory index --mdl /nonexistent/path.json</code>
+        <div class="err">→ MDL file not found: /nonexistent/path.json</div>
+        <code>wren memory index --mdl broken.json</code>
+        <div class="err">→ invalid JSON in broken.json</div>
+      </div>
+    </div>
+    
+    <div class="section-label">边界情况</div>
+    <div class="edge-cases">
+      <ul>
+        <li>空 manifest（无模型/关系）：schema_items = 0，seeds = 0</li>
+        <li>knowledge/sql/ 目录不存在：静默跳过，加载 0 对</li>
+        <li>queries.yml 损坏：打印警告，命令继续执行</li>
+        <li>首次运行下载模型到 HF 缓存；后续使用本地缓存</li>
+      </ul>
+    </div>
+  </div>
+  
+  <!-- store -->
+  <div class="detail-panel" id="cmd-store">
+    <div class="detail-title">wren memory store</div>
+    <p style="font-size:12px;color:#8b90a0;margin-top:4px">存储单条 NL→SQL 对到 markdown 文件和 LanceDB 索引</p>
+    <div class="detail-signature">wren memory store --nl "natural language" --sql "SELECT ..."
+                  [--datasource/-d DS] [--tags TAGS] [--path/-p PATH]</div>
+    
+    <div class="section-label">内部流程</div>
+    <ol class="flow-steps">
+      <li>发现项目路径</li>
+      <li>写入 markdown 文件到 <code>knowledge/sql/&lt;slug&gt;.md</code>（通过 write_query_markdown）</li>
+      <li>尽力索引到 LanceDB（如果 memory extra 可用）：<br>
+        → 构造 MemoryStore<br>
+        → 调用 store_query(nl, sql, datasource, tags)<br>
+        → 嵌入 NL 查询，插入 query_history 表</li>
+    </ol>
+    
+    <div class="section-label">关键决策点</div>
+    <div class="decision-box">
+      <div class="label">markdown 文件始终写入</div>
+      <div style="color:#e4e7ef;font-size:11px">不依赖 memory extra。即使 LanceDB 不可用，markdown 文件也会被写入。LanceDB 索引是尽力而为。</div>
+    </div>
+    <div class="decision-box">
+      <div class="label">slug 是确定性的</div>
+      <div style="color:#e4e7ef;font-size:11px">相同 NL → 相同文件名。冲突时添加数字后缀。NL 中的特殊字符被 slugify 为小写字母数字 + 连字符。</div>
+    </div>
+    
+    <div class="section-label">正确 / 错误示例</div>
+    <div class="example-grid">
+      <div class="example-box correct">
+        <div class="tag">✓ 正确</div>
+        <code>wren memory store --nl "Total revenue" \
+  --sql "SELECT SUM(amount) FROM orders"
+
+wren memory store --nl "Active users" \
+  --sql "SELECT * FROM users WHERE status='active'" \
+  --datasource postgres --tags "users,revenue"</code>
+      </div>
+      <div class="example-box incorrect">
+        <div class="tag">✗ 错误</div>
+        <code>wren memory store --nl "" --sql "SELECT 1"</code>
+        <div class="err">→ 创建文件，slug 为空回退到 "query.md"</div>
+        <code>wren memory store --nl "test"</code>
+        <div class="err">→ Missing option '--sql'</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- recall -->
+  <div class="detail-panel" id="cmd-recall">
+    <div class="detail-title">wren memory recall</div>
+    <p style="font-size:12px;color:#8b90a0;margin-top:4px">语义搜索历史 NL→SQL 对，用于 few-shot 示例召回</p>
+    <div class="detail-signature">wren memory recall --query/-q "search query" [--limit/-l N]
+                   [--datasource/-d DS] [--output/-o json|table]</div>
+    
+    <div class="section-label">内部流程</div>
+    <ol class="flow-steps">
+      <li>发现项目路径</li>
+      <li>通过 get_index(project, path) 获取索引<br>
+        → LanceDB: LanceDBIndex → 语义搜索 via store.recall_queries()<br>
+        → Grep: GrepIndex → token 重叠 + 子串匹配</li>
+      <li>通过 markdown 文件路径注解结果</li>
+      <li>打印结果</li>
+    </ol>
+    
+    <div class="section-label">关键决策点</div>
+    <div class="decision-box">
+      <div class="label">Grep 评分逻辑</div>
+      <div style="color:#e4e7ef;font-size:11px">
+        <code>_tokens()</code> 提取 2+ 字符的小写 token<br>
+        评分 = token 重叠数 × 10 + (整个查询是子串 ? 5 : 0)<br>
+        线性扫描所有对（&lt;1000 对时很快）
+      </div>
+    </div>
+    
+    <div class="section-label">正确 / 错误示例</div>
+    <div class="example-grid">
+      <div class="example-box correct">
+        <div class="tag">✓ 正确</div>
+        <code>wren memory recall --query "revenue by region"
+wren memory recall --query "orders" --limit 10 --output json
+wren memory recall --query "users" --datasource postgres</code>
+      </div>
+      <div class="example-box incorrect">
+        <div class="tag">✗ 错误</div>
+        <code>wren memory recall</code>
+        <div class="err">→ Missing option '--query' / '-q'</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- fetch -->
+  <div class="detail-panel" id="cmd-fetch">
+    <div class="detail-title">wren memory fetch</div>
+    <p style="font-size:12px;color:#8b90a0;margin-top:4px">检索 schema 上下文，自动选择全文或语义搜索策略</p>
+    <div class="detail-signature">wren memory fetch --query/-q "search query" [--mdl/-m MDL_PATH]
+                  [--limit/-l N] [--type/-t model|column|relationship|view]
+                  [--model MODEL_NAME] [--threshold N] [--output/-o json|table]</div>
+    
+    <div class="section-label">内部流程</div>
+    <ol class="flow-steps">
+      <li>加载 MDL manifest</li>
+      <li>构造 MemoryStore</li>
+      <li>调用 store.get_context(manifest, query, **kwargs)<br>
+        → describe_schema(manifest) 生成纯文本<br>
+        → <strong>如果 len(text) ≤ threshold（默认 30000）：strategy="full"</strong><br>
+        → <strong>否则：strategy="search"</strong>（LanceDB ANN 搜索）</li>
+      <li>搜索时按 mdl_hash、item_type、model_name 过滤</li>
+    </ol>
+    
+    <div class="section-label">关键决策点</div>
+    <div class="decision-box">
+      <div class="label">全文 vs 搜索阈值</div>
+      <div style="color:#e4e7ef;font-size:11px">
+        默认阈值 = 30,000 字符 ≈ 8,000 token<br>
+        CJK 语言更早切换（相同字符数更多 token）<br>
+        <code>--threshold 0</code> 强制搜索，<code>--threshold 999999</code> 强制全文<br>
+        全文提供完整上下文但可能超出 LLM 窗口；搜索提供相关片段但可能丢失全局结构
+      </div>
+    </div>
+    
+    <div class="section-label">正确 / 错误示例</div>
+    <div class="example-grid">
+      <div class="example-box correct">
+        <div class="tag">✓ 正确</div>
+        <code>wren memory fetch --query "customer revenue"
+wren memory fetch --query "orders" --type model --limit 3
+wren memory fetch --query "amount" --type column --model orders
+wren memory fetch --query "test" --threshold 5000</code>
+      </div>
+      <div class="example-box incorrect">
+        <div class="tag">✗ 注意</div>
+        <code>wren memory fetch --query "test" --type invalid</code>
+        <div class="err">→ 不报错，只是不应用类型过滤</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- watch -->
+  <div class="detail-panel" id="cmd-watch">
+    <div class="detail-title">wren memory watch</div>
+    <p style="font-size:12px;color:#8b90a0;margin-top:4px">监控 MDL 和 markdown 文件变化，自动触发重索引</p>
+    <div class="detail-signature">wren memory watch [--mdl/-m MDL_PATH] [--interval/-i SECONDS]
+                  [--reindex-on-start/--no-reindex-on-start] [--max-polls N]</div>
+    
+    <div class="section-label">内部流程</div>
+    <ol class="flow-steps">
+      <li>如果 grep 后端：拒绝（无衍生索引可监控）</li>
+      <li>发现项目路径，验证 --mdl 在项目根目录内</li>
+      <li>定义 _reindex() 回调：加载 manifest → index_schema → sync_markdown_queries</li>
+      <li>进入 watch_loop：<br>
+        → 计算初始指纹（SHA-256 of path+size+mtime_ns）<br>
+        → 每次轮询：重新计算指纹，比较<br>
+        → 变化时：调用 _reindex()，更新基线<br>
+        → 失败时：保持旧指纹，下次重试<br>
+        → KeyboardInterrupt：干净退出</li>
+    </ol>
+    
+    <div class="section-label">关键决策点</div>
+    <div class="decision-box">
+      <div class="label">指纹计算（无文件内容读取）</div>
+      <div style="color:#e4e7ef;font-size:11px">
+        SHA-256 of: for each file in sorted(target/mdl.json, knowledge/sql/*.md):<br>
+        <code>relative_path \0 size \0 mtime_ns \0</code><br>
+        仅 stat 调用检测变化（廉价），不读取文件内容
+      </div>
+    </div>
+    <div class="decision-box">
+      <div class="label">失败重试机制</div>
+      <div style="color:#e4e7ef;font-size:11px">重索引失败时保持旧指纹，变化待定。下次轮询时如果文件仍变化，会重试。</div>
+    </div>
+    
+    <div class="section-label">正确 / 错误示例</div>
+    <div class="example-grid">
+      <div class="example-box correct">
+        <div class="tag">✓ 正确</div>
+        <code>wren memory watch
+wren memory watch --interval 2.0 --reindex-on-start
+wren memory watch --max-polls 10</code>
+      </div>
+      <div class="example-box incorrect">
+        <div class="tag">✗ 错误</div>
+        <code>wren memory watch --mdl /other/project/mdl.json</code>
+        <div class="err">→ --mdl is outside the watched project root</div>
+        <code>WREN_MEMORY_BACKEND=grep wren memory watch</code>
+        <div class="err">→ grep backend: nothing to watch</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- list -->
+  <div class="detail-panel" id="cmd-list">
+    <div class="detail-title">wren memory list</div>
+    <p style="font-size:12px;color:#8b90a0;margin-top:4px">列出 query_history 表中的 NL→SQL 对</p>
+    <div class="detail-signature">wren memory list [--source/-s seed|user|view] [--limit/-n N]
+                 [--offset N] [--output/-o json|table]</div>
+    
+    <div class="section-label">关键决策点</div>
+    <div class="decision-box">
+      <div class="label">_row_id 是位置索引</div>
+      <div style="color:#e4e7ef;font-size:11px">
+        _row_id 是未过滤表中的位置索引（用于 forget 命令）。<br>
+        _tag_source() 从 tags 字符串提取 source:XXX token。<br>
+        分页显示：Showing X-Y of Z pairs.
+      </div>
+    </div>
+    
+    <div class="section-label">正确 / 错误示例</div>
+    <div class="example-grid">
+      <div class="example-box correct">
+        <div class="tag">✓ 正确</div>
+        <code>wren memory list
+wren memory list --source seed --limit 5
+wren memory list --offset 10 --output json</code>
+      </div>
+      <div class="example-box incorrect">
+        <div class="tag">✗ 注意</div>
+        <code>wren memory list --source invalid</code>
+        <div class="err">→ 返回空列表（不报错）</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- dump -->
+  <div class="detail-panel" id="cmd-dump">
+    <div class="detail-title">wren memory dump</div>
+    <p style="font-size:12px;color:#8b90a0;margin-top:4px">将 query_history 表导出为 YAML 文件</p>
+    <div class="detail-signature">wren memory dump [--source/-s seed|user|view]
+                 [--output/-o FILE|-]</div>
+    
+    <div class="section-label">关键决策点</div>
+    <div class="decision-box">
+      <div class="label">输出目标</div>
+      <div style="color:#e4e7ef;font-size:11px">
+        <code>--output -</code>：stdout<br>
+        <code>--output FILE</code>：写入文件<br>
+        默认：&lt;project&gt;/queries.yml（如果在项目中），否则 stdout<br>
+        YAML 格式：{version: 1, exported_at: ISO, pairs: [...]}
+      </div>
+    </div>
+    
+    <div class="section-label">正确 / 错误示例</div>
+    <div class="example-grid">
+      <div class="example-box correct">
+        <div class="tag">✓ 正确</div>
+        <code>wren memory dump
+wren memory dump --source user --output backup.yml
+wren memory dump --output - | head -50</code>
+      </div>
+      <div class="example-box incorrect">
+        <div class="tag">✗ 无数据</div>
+        <code>wren memory dump</code>
+        <div class="err">→ "No pairs to dump." 并退出</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- forget -->
+  <div class="detail-panel" id="cmd-forget">
+    <div class="detail-title">wren memory forget</div>
+    <p style="font-size:12px;color:#8b90a0;margin-top:4px">从 query_history 表中删除 NL→SQL 对（三种模式）</p>
+    <div class="detail-signature">wren memory forget [--id ID ...] [--source/-s seed|user|view]
+                    [--force/-f] [--limit/-n N]</div>
+    
+    <div class="section-label">三种模式</div>
+    <ol class="flow-steps">
+      <li><strong>非交互式 + --id：</strong>按位置索引删除。--id 和 --source 互斥。</li>
+      <li><strong>批量 + --source + --force：</strong>按来源标签批量删除。</li>
+      <li><strong>交互式（默认）：</strong>需要 InquirerPy，呈现 checkbox UI。</li>
+    </ol>
+    
+    <div class="section-label">关键决策点</div>
+    <div class="decision-box">
+      <div class="label">位置索引陷阱</div>
+      <div style="color:#e4e7ef;font-size:11px">
+        _row_id 是未过滤表中的位置索引，每次列表操作可能变化。<br>
+        ID 超出范围时静默跳过（不报错）。<br>
+        所有行被删除时删除整个表。
+      </div>
+    </div>
+    
+    <div class="section-label">正确 / 错误示例</div>
+    <div class="example-grid">
+      <div class="example-box correct">
+        <div class="tag">✓ 正确</div>
+        <code>wren memory forget --id 0 --id 3 --id 5
+wren memory forget --source seed --force
+wren memory forget  # 交互式</code>
+      </div>
+      <div class="example-box incorrect">
+        <div class="tag">✗ 错误</div>
+        <code>wren memory forget --id 1 --source seed</code>
+        <div class="err">→ --id and --source cannot be used together</div>
+        <code>wren memory forget --id 99999</code>
+        <div class="err">→ "Forgot 0 pair(s)."（静默忽略）</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- load -->
+  <div class="detail-panel" id="cmd-load">
+    <div class="detail-title">wren memory load</div>
+    <p style="font-size:12px;color:#8b90a0;margin-top:4px">从 YAML 文件批量导入 NL→SQL 对</p>
+    <div class="detail-signature">wren memory load FILE [--upsert] [--overwrite] [--dry-run]</div>
+    
+    <div class="section-label">三种导入模式</div>
+    <ol class="flow-steps">
+      <li><strong>overwrite：</strong>删除相同来源的所有对，然后写入所有</li>
+      <li><strong>upsert：</strong>按 nl_query 去重（后者胜出），删除现有匹配，插入所有</li>
+      <li><strong>默认（skip）：</strong>对每对，如果精确（nl, sql）匹配则跳过</li>
+    </ol>
+    
+    <div class="section-label">关键决策点</div>
+    <div class="decision-box">
+      <div class="label">upsert 去重逻辑</div>
+      <div style="color:#e4e7ef;font-size:11px">upsert 按 nl_query 去重（不是 sql），最后出现的胜出。这意味着相同 NL 不同 SQL 时，后者覆盖前者。</div>
+    </div>
+    
+    <div class="section-label">正确 / 错误示例</div>
+    <div class="example-grid">
+      <div class="example-box correct">
+        <div class="tag">✓ 正确</div>
+        <code>wren memory load queries.yml
+wren memory load backup.yml --upsert
+wren memory load export.yml --overwrite --dry-run</code>
+      </div>
+      <div class="example-box incorrect">
+        <div class="tag">✗ 错误</div>
+        <code>wren memory load nonexistent.yml</code>
+        <div class="err">→ file not found: nonexistent.yml</div>
+        <code>wren memory load broken.yml</code>
+        <div class="err">→ unable to read YAML from broken.yml</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- reset -->
+  <div class="detail-panel" id="cmd-reset">
+    <div class="detail-title">wren memory reset</div>
+    <p style="font-size:12px;color:#8b90a0;margin-top:4px">删除所有 LanceDB 索引表（schema_items 和 query_history）</p>
+    <div class="detail-signature">wren memory reset [--path/-p PATH] [--force/-f]</div>
+    
+    <div class="section-label">关键决策点</div>
+    <div class="decision-box">
+      <div class="label">只删 LanceDB，不删 markdown</div>
+      <div style="color:#e4e7ef;font-size:11px">knowledge/sql/*.md 永远不被触碰（真相源）。重置后需要重新运行 wren memory index。</div>
+    </div>
+    
+    <div class="section-label">正确 / 错误示例</div>
+    <div class="example-grid">
+      <div class="example-box correct">
+        <div class="tag">✓ 正确</div>
+        <code>wren memory reset --force
+wren memory reset  # 交互式确认</code>
+      </div>
+      <div class="example-box incorrect">
+        <div class="tag">✗ Grep 后端</div>
+        <code>wren memory reset</code>
+        <div class="err">→ "grep backend has no derived index" 并退出</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- check -->
+  <div class="detail-panel" id="cmd-check">
+    <div class="detail-title">wren memory check</div>
+    <p style="font-size:12px;color:#8b90a0;margin-top:4px">检查 markdown 文件和 LanceDB 索引之间的同步状态</p>
+    <div class="detail-signature">wren memory check [--path/-p PATH]</div>
+    
+    <div class="section-label">内部流程</div>
+    <ol class="flow-steps">
+      <li>加载 markdown NLS：{p["nl"] for p in load_query_pairs(project)}</li>
+      <li>加载已索引 NLS：{r["nl_query"] for r in mem_store.list_queries(limit=1M)}</li>
+      <li>加载已索引的 markdown 支持 NLS：按 _MARKDOWN_SYNC_TAG 过滤</li>
+      <li>计算：<br>
+        → missing = md_nls - indexed_md（在 markdown 中但未索引）<br>
+        → stale = indexed_md - md_nls（已同步但 markdown 已删除）</li>
+    </ol>
+    
+    <div class="section-label">关键决策点</div>
+    <div class="decision-box">
+      <div class="label">使用 _MARKDOWN_SYNC_TAG 而非 source</div>
+      <div style="color:#e4e7ef;font-size:11px">
+        使用 origin:markdown-sync 标签识别由 sync_markdown_queries 写入的行。<br>
+        不使用 source 标签（会错误分类 wren memory load 的对）。
+      </div>
+    </div>
+    
+    <div class="section-label">正确示例</div>
+    <div class="example-grid">
+      <div class="example-box correct">
+        <div class="tag">✓ 同步</div>
+        <code>wren memory check
+# knowledge/sql: 5 pair(s); index: 5 pair(s)
+# In sync.</code>
+      </div>
+      <div class="example-box incorrect">
+        <div class="tag">✗ 不同步</div>
+        <code>wren memory check
+# knowledge/sql: 3 pair(s); index: 5 pair(s)
+#   2 indexed pair(s) without markdown, stale index,
+#   run `wren memory index`.</code>
+      </div>
+    </div>
+  </div>
+  
+  <!-- describe -->
+  <div class="detail-panel" id="cmd-describe">
+    <div class="detail-title">wren memory describe</div>
+    <p style="font-size:12px;color:#8b90a0;margin-top:4px">生成人类可读的 schema 描述文本（无索引、无嵌入）</p>
+    <div class="detail-signature">wren memory describe [--mdl/-m MDL_PATH]</div>
+    
+    <div class="section-label">关键决策点</div>
+    <div class="decision-box">
+      <div class="label">调试工具</div>
+      <div style="color:#e4e7ef;font-size:11px">纯文本生成，无嵌入或索引。用于调试和理解将被索引的内容。</div>
+    </div>
+    
+    <div class="section-label">正确示例</div>
+    <div class="example-grid">
+      <div class="example-box correct">
+        <div class="tag">✓ 正确</div>
+        <code>wren memory describe
+wren memory describe --mdl ./target/mdl.json</code>
+      </div>
+    </div>
+  </div>
+  
+  <!-- export -->
+  <div class="detail-panel" id="cmd-export">
+    <div class="detail-title">wren memory export</div>
+    <p style="font-size:12px;color:#8b90a0;margin-top:4px">将 LanceDB 中的 NL→SQL 对导出为 markdown 文件（迁移命令）</p>
+    <div class="detail-signature">wren memory export [--path/-p PATH] [--include-seed]</div>
+    
+    <div class="section-label">关键决策点</div>
+    <div class="decision-box">
+      <div class="label">一次性迁移命令</div>
+      <div style="color:#e4e7ef;font-size:11px">
+        从 LanceDB 迁移到 markdown。LanceDB 保持不变。<br>
+        用户运行 index 重建，然后 reset 清理。<br>
+        默认排除 seed 对（会在 index 时重新生成）。
+      </div>
+    </div>
+    
+    <div class="section-label">正确示例</div>
+    <div class="example-grid">
+      <div class="example-box correct">
+        <div class="tag">✓ 正确</div>
+        <code>wren memory export
+wren memory export --include-seed</code>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 子系统 ==================== -->
+<div class="view" id="view-subsystems">
+  <div class="subsys-grid">
+    <div class="subsys-card">
+      <h3><div class="dot" style="background:#22d3ee"></div>查询上下文策略</h3>
+      <pre>
+get_context(manifest, query)
+    │
+    ├─→ describe_schema(manifest) → text
+    │
+    ├─→ if len(text) ≤ threshold (30000):
+    │       return {strategy: "full", schema: text}
+    │
+    └─→ else:
+            ├─→ manifest_hash(manifest) → mdl_hash
+            └─→ _search_schema(query, mdl_hash)
+                    └─→ LanceDB ANN search
+                        WHERE mdl_hash = ?
+                        AND item_type = ?</pre>
+      <ul>
+        <li>阈值 = 30,000 字符 ≈ 8K token</li>
+        <li>CJK 语言更早切换</li>
+        <li>--threshold 可调</li>
+      </ul>
+    </div>
+    
+    <div class="subsys-card">
+      <h3><div class="dot" style="background:#34d399"></div>Markdown 同步协议</h3>
+      <pre>
+sync_markdown_queries(pairs)
+    │
+    ├─→ load_queries(pairs, upsert=True,
+    │       mark_markdown_synced=True)
+    │       │
+    │       ├─→ 去重输入按 nl_query
+    │       ├─→ 准备记录带 _MARKDOWN_SYNC_TAG
+    │       ├─→ 删除匹配 nl_query 的现有行
+    │       └─→ 插入新记录
+    │
+    └─→ Forget pass:
+            ├─→ 列出带 _MARKDOWN_SYNC_TAG 的行
+            ├─→ 找到 nl_query 不在当前 pairs 中的行
+            └─→ 删除过期行</pre>
+      <ul>
+        <li>_MARKDOWN_SYNC_TAG = "origin:markdown-sync"</li>
+        <li>只有 sync 写入的行有资格被 forget</li>
+        <li>source:user 行不会被 sync 遗忘</li>
+      </ul>
+    </div>
+    
+    <div class="subsys-card">
+      <h3><div class="dot" style="background:#a78bfa"></div>Watch 监控循环</h3>
+      <pre>
+watch_loop(project, interval, max_polls)
+    │
+    ├─→ baseline = "" if reindex_on_start
+    │              else compute_fingerprint()
+    │
+    └─→ while polling:
+            ├─→ current = compute_fingerprint()
+            ├─→ if current == baseline: skip
+            ├─→ reindex()
+            │       ├─→ index_schema()
+            │       └─→ sync_markdown_queries()
+            ├─→ baseline = current (only on success)
+            └─→ sleep(interval)</pre>
+      <ul>
+        <li>指纹 = SHA-256(path+size+mtime_ns)</li>
+        <li>无文件内容读取（仅 stat）</li>
+        <li>失败重试（保持旧指纹）</li>
+        <li>最小间隔 1.0 秒</li>
+      </ul>
+    </div>
+    
+    <div class="subsys-card">
+      <h3><div class="dot" style="background:#fbbf24"></div>Embeddings 后端</h3>
+      <pre>
+OnnxEmbeddings Pipeline:
+  1. Load tokenizer (HF cache)
+  2. Validate mean pooling
+  3. Load ONNX model
+  4. Encode: tokenize → session.run
+     → attention-masked mean pooling
+     → L2 normalize
+  5. Batch size: 32
+
+Local-First Loading:
+  Try local_files_only=True first
+  Fallback to online download
+  Model cached per process</pre>
+      <ul>
+        <li>ONNX: 轻量，无 torch 依赖</li>
+        <li>ST: 需要 torch，更多模型选择</li>
+        <li>自动检测，优先 ONNX</li>
+      </ul>
+    </div>
+    
+    <div class="subsys-card">
+      <h3><div class="dot" style="background:#fb7185"></div>GrepIndex 搜索逻辑</h3>
+      <pre>
+GrepIndex.search(query):
+  tokens = _tokens(query)  # 2+ char lowercase
+  for pair in all_pairs:
+    pair_tokens = _tokens(pair.nl)
+    overlap = len(tokens & pair_tokens)
+    score = overlap * 10
+    if query in pair.nl.lower():
+      score += 5  # substring bonus
+  return sorted by score, limit N</pre>
+      <ul>
+        <li>无依赖，纯 Python</li>
+        <li>线性扫描（&lt;1000 对时很快）</li>
+        <li>token 重叠 + 子串匹配</li>
+      </ul>
+    </div>
+    
+    <div class="subsys-card">
+      <h3><div class="dot" style="background:#60a5fa"></div>LanceDBIndex 搜索逻辑</h3>
+      <pre>
+LanceDBIndex.search(query):
+  vector = embed(query)  # 384-dim
+  results = store.recall_queries(
+    query=vector,
+    limit=N,
+    datasource=DS
+  )
+  return results  # milliseconds</pre>
+      <ul>
+        <li>需要 memory extra（lancedb + pyarrow）</li>
+        <li>ANN 搜索，毫秒级</li>
+        <li>支持 datasource 过滤</li>
+        <li>嵌入查询是瓶颈</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('view-' + tab.dataset.view).classList.add('active');
+  });
+});
+
+// Command switching
+document.querySelectorAll('.cmd-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.cmd-chip').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('.detail-panel').forEach(p => p.classList.remove('active'));
+    chip.classList.add('selected');
+    document.getElementById('cmd-' + chip.dataset.cmd).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
