@@ -591,6 +591,120 @@ wren memory watch --reindex-on-start
 
 ---
 
+## 性能优化与资源需求
+
+### 资源消耗估算（4000+ 模型）
+
+| 组件 | 内存 | CPU | 说明 |
+|------|------|-----|------|
+| Python dict (manifest) | ~30-50MB | 低 | 模型/列/关系/视图/Cube 结构 |
+| JSON 字符串 | ~5-10MB | 低 | `json.dumps()` 输出 |
+| 文本描述 | ~200KB | 低 | `describe_schema()` 输出 |
+| LanceDB 索引 | ~30-50MB | 首次高 | 向量嵌入 (128维 × 4000 模型 × 15 列) |
+| **总计** | **~70-110MB** | — | |
+
+### 推荐配置
+
+| 场景 | CPU | 内存 | 说明 |
+|------|-----|------|------|
+| 开发/测试 | 2 核 | 2GB | 够用 |
+| 生产/频繁查询 | 4 核 | 4GB | 推荐 |
+| 大规模索引 | 4 核 + GPU | 8GB | 向量嵌入加速 |
+
+### 优化方向
+
+#### 1. `get_context()` 的冗余文本生成
+
+**问题**：`get_context()` 每次都先调用 `describe_schema()` 生成全量文本，再判断长度决定策略。对于大模型，生成 200K+ chars 文本后丢弃，浪费 CPU 和内存。
+
+```python
+# 当前实现（store.py:332-344）
+def get_context(manifest, query, ...):
+    text = describe_schema(manifest)  # 每次都生成全量文本
+    if len(text) <= threshold:
+        return {"strategy": "full", "schema": text}
+    # 大模型：丢弃 text，用向量检索
+    results = self._search_schema(query, ...)
+    return {"strategy": "search", "results": results}
+```
+
+**优化方案**：先检查 manifest 大小，跳过 `describe_schema()`：
+
+```python
+# 优化方案（未实现）
+def get_context(manifest, query, ...):
+    model_count = len(manifest.get("models", []))
+    if model_count < 500:  # 快速判断
+        return {"strategy": "full", "schema": describe_schema(manifest)}
+    # 大模型：直接向量检索
+    results = self._search_schema(query, ...)
+    return {"strategy": "search", "results": results}
+```
+
+**收益**：避免生成 200K+ chars 文本，节省 ~100ms CPU 时间和 ~200KB 内存。
+
+#### 2. `wren://mdl` 资源无截断
+
+**问题**：`wren://mdl` 资源返回全量 JSON（5-10MB），LLM 直接读取会爆上下文。
+
+```python
+# 当前实现（mcp_server.py:547-552）
+@mdl.resource("wren://mdl")
+def mdl_resource() -> str:
+    return json.dumps(build_json(ctx.project))  # 全量 JSON，无截断
+```
+
+**优化方案**：
+- 方案 A：workflow prompt 明确指示 LLM 不要直接读 `wren://mdl`，而是用 `get_context()` 或 `describe_schema()`
+- 方案 B：`wren://mdl` 返回摘要版本（只包含模型名称和列名，不包含完整定义）
+
+**收益**：避免 LLM 上下文溢出。
+
+#### 3. Rules 全量加载
+
+**问题**：`get_instructions()` 返回全部 rules 文本（可能 2000-3000 行），无法按需检索。
+
+```python
+# 当前实现（mcp_server.py:362-367）
+def get_instructions() -> dict:
+    content, used_legacy = load_rules(ctx.project)  # 全量拼接
+    return {"instructions": content or ""}  # 全量返回
+```
+
+**优化方案**：
+- 方案 A：MCP 层加参数，按 topic 筛选文件
+- 方案 B：将 rules 按 `##` 标题分 chunk，存入向量库，按查询检索相关 chunk
+
+**收益**：减少 token 消耗，提高检索精度。
+
+#### 4. Memory 索引全量重建
+
+**问题**：`wren memory index` 每次都整表删除重建，即使只修改了一个模型。
+
+```python
+# 当前实现（store.py:240-258）
+if replace:
+    self._db.drop_table(_SCHEMA_TABLE)  # 整表删除
+    self._db.create_table(_SCHEMA_TABLE, items)  # 重建
+```
+
+**优化方案**：
+- 方案 A：增量更新（比较 manifest hash，只更新变化的 items）
+- 方案 B：并行向量化（使用多线程/GPU 加速嵌入计算）
+
+**收益**：减少索引时间（从 ~30s 降到 ~5s）。
+
+### 性能瓶颈分析
+
+| 瓶颈 | 影响 | 优先级 |
+|------|------|--------|
+| `describe_schema()` 冗余生成 | 每次查询浪费 ~100ms | 中 |
+| `wren://mdl` 全量返回 | LLM 上下文溢出 | 高 |
+| Rules 全量加载 | token 消耗大 | 中 |
+| Memory 全量重建 | 索引时间长 | 低 |
+
+---
+
 ## 总结
 
 | 机制 | 加载方式 | 规模影响 | 应对策略 |
@@ -606,3 +720,4 @@ wren memory watch --reindex-on-start
 3. 使用 `get_context()` 而非 `describe_schema()` 处理大模型
 4. MDL 变更后必须重新索引 memory（`wren memory index`）
 5. 删除 YAML 文件后，mdl.json 会更新，但 Memory 索引需要手动重建
+6. 4000+ 模型推荐 4 核 CPU + 4GB 内存
