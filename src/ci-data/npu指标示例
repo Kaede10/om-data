@@ -1,0 +1,45 @@
+集群维度
+cluster:npu_aicore_ratio  AICore使用率
+1.account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |cluster:npu_aicore_ratio   4.01
+
+cluster:npu_chips_occupied  占用卡数
+1.account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |cluster:npu_chips_occupied  34
+
+cluster:npu_chips_used   使用卡数
+1.account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |cluster:npu_chips_used 10
+
+cluster:npu_hbm_ratio  内存使用率
+1.account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |cluster:npu_hbm_ratio  6.7
+
+
+
+pod维度：
+pod:npu_aicore_ratio    AICore使用率
+1.account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | instance: 10.0.0.239:8082 | namespace: kube-system | pod_name: 1549372689586204673-pod | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |pod:npu_aicore_ratio   4.13
+
+pod:npu_chips_occupied    占用卡数
+1.account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | instance: 10.0.0.239:8082 | namespace: kube-system | pod_name: 1549372689586204673-pod | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |pod:npu_chips_occupied   8
+
+pod:npu_chips_used  使用卡数
+5.account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | instance: 10.0.2.2:8082 | namespace: kube-system | pod_name: 1549384181802876961-pod | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |pod:npu_chips_used   2
+
+pod:npu_mem_ratio  内存使用率
+6.account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | instance: 10.0.2.172:8082 | namespace: kube-system | pod_name: 1549383612401070081-pod | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |pod:npu_mem_ratio  99.99
+
+pod:npu_used_card_seconds_5m  5分钟内累计使用卡时  使用卡数x秒数 （5min上报一次）
+7.account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | instance: 10.0.3.72:8082 | namespace: kube-system | pod_name: 1549387885830488065-pod | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |pod:npu_used_card_seconds_5m  550
+
+
+
+节点维度：（已经包括了节点上n张卡的利用率， 一个节点一个指标）
+node:npu_aicore_ratio  AICore使用率
+3.account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | instance: 10.0.1.145:8082 | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |node:npu_aicore_ratio   32.06
+
+node:npu_chips_occupied   占用卡数 (custom_npu_occupied - 略有区别)
+1.account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | instance: 10.0.0.239:8082 | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |node:npu_chips_occupied  8
+
+node:npu_chips_used   使用卡数 (custom_npu_used - 略有区别)
+1.account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | instance: 10.0.0.239:8082 | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |node:npu_chips_used  2
+
+node:npu_hbm_ratio   内存使用率
+1.account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | instance: 10.0.0.239:8082 | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |node:npu_hbm_ratio  11.34
