@@ -23,6 +23,9 @@ account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | instan
 pod:npu_used_card_seconds_5m  5分钟内累计使用卡时  使用卡数x秒数 （5min上报一次）
 account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | instance: 10.0.3.72:8082 | namespace: kube-system | pod_name: 1549387885830488065-pod | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |pod:npu_used_card_seconds_5m  550
 
+custom_npu_pod_attr_card_seconds  占用卡时，结束时上报一次
+card_source=limits | community=Ascend/pytorch | end_time=2026-09-15T06:54:45Z | instance=192.168.1.28:9101 | job=npu-exporter | jobname=UT_pytorch_dist_general | namespace=op-plugin | node_ip=unknown | pod_name=ascend-pytorch-4rsrg-main-script-0 | pr=44387 | running_duration_seconds=1192 | start_time=2026-09-15T06:34:53Z
+
 pod:npu_chips_occupied    占用卡数
 account: ascend_infra | cluster: wlcb-001 | domain: 昇腾 | env: cloud | instance: 10.0.0.239:8082 | namespace: kube-system | pod_name: 1549372689586204673-pod | project: Ascend统一资源池-乌兰察布 | region: 乌兰察布 |pod:npu_chips_occupied   8
 
