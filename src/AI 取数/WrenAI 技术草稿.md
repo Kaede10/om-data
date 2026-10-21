@@ -28,11 +28,11 @@
 
 **第一层是 Agent 交互层**——这是架构的第一层，不是外挂的消费者。包含三样东西：Wren CLI 是主接口，所有能力通过命令暴露；Skills 是 6 个 Markdown 工作流，Agent 通过 `wren skills get` 按需获取；MCP Server 把 18 个工具、6 个资源、1 个 prompt 暴露给 Claude Code、Cursor 等 Agent。
 
-**第二层是上下文层**——这是 WrenAI 的核心。三块内容：MDL 是语义定义（模型、视图、关系、Cube）；`knowledge/` 目录是业务知识资产（rules、sql、glossary、metrics、caveats 五个子目录）；Memory 是前两者的语义索引，底层用 LanceDB。
+**第二层是上下文层**——这是 WrenAI 的核心。三块内容：MDL 是语义定义（模型、视图、关系、Cube）；`knowledge/` 目录是业务知识资产（rules、sql、glossary、metrics、caveats 五个子目录）；Memory 是前两者的语义索引，底层用 LanceDB，如果没有设置向量数据库，就使用 Grep 兜底，子串匹配。
 
 **第三层是规划引擎**——把"针对模型的 SQL"展开成"数据库能执行的 SQL"。四个组件协作：sqlglot 做解析和方言转译，CTE Rewriter 把展开结果注入为 WITH 子句，Policy 做双层安全校验，wren-core 是 Rust 写的语义引擎，基于 Apache DataFusion。
 
-**第四层是执行层**——工厂模式，22+ 数据源连接器，统一返回 pyarrow 表。
+**第四层是执行层**——基于工厂模式实现 22+ 数据源连接器，统一dry-run、query和返回 pyarrow 表。
 
 > 切换到：六个上下文原语流程图
 
@@ -40,8 +40,11 @@
 
 > 切换到：五层上下文模型
 
-最后补充一个区分：你们可能听到"五层上下文"和"四层架构"两个概念，别搞混。四层是系统的架构分层——谁调用谁；五层是上下文的内容分类——什么信息放哪。五层里的前三层（结构、语义、业务）由 MDL 承载，第四层（操作）由 knowledge/rules 承载，第五层（行为）由 Memory 承载。注意第④层和第⑤层标了"已实现"和"演进中"——知识规则和 Memory 检索已经是可用功能，但查询时治理和自主学习闭环还在演进。
-
+1.  **结构化层 (Structural)**：回答“**有什么数据**”。包含表、列、数据类型、主键、关系等。这是最基础的一层，对应你的 `om-dataarts` 在 Postgres 中的物理表结构。
+2.  **语义层 (Semantic)**：回答“**数据意味着什么**”。包含模型、指标、计算字段、枚举值标签、规范表等。它把物理表名翻译成业务概念，例如把 `fct_orders` 表封装成“订单”模型，并定义“有效营收”这个计算字段。
+3.  **业务层 (Business)**：回答“**这家公司怎么定义**”。包含“活跃客户”、“营收”、“流失”等术语在公司内部的特定含义，以及内部项目代号、团队特定口径等。这直接对应你之前关心的 `glossary` 和 `metrics`，解决口径统一问题。
+4.  **操作层 (Operational)**：回答“**数据应该怎么安全使用**”。包含经批准的 join 路径、 sanctioned 查询、查询时治理策略、以及“绝对不要计算的东西”。这对应你架构中的 `relationships`（规范 join 路径）和 `rules`（如排除测试账号），确保 AI 不会生成错误的关联或越权查询。
+5.  **行为层 (Behavioral)**：回答“**过去什么做法是有效的**”。包含成功的自然语言到 SQL 的查询对、示例、用户反馈和记忆。这正是 `knowledge/sql/` 和 Memory 索引的作用，让 AI 能参考历史上被验证正确的查询，而不是每次都从零推理。
 ---
 
 ## §03 Agent 交互层：CLI + Skills + MCP
@@ -70,11 +73,15 @@ GenBI 看板：`wren genbi build/register/verify/deploy`，后面单独讲。
 
 > 切换到：MCP Server + Ask 模块
 
-MCP Server 有 18 个工具分四组：查询组（执行 SQL、试运行、查 Cube、dry-plan）、上下文组（取 MDL、列模型、描述模型）、知识组（取规则、召回历史、取上下文）、写入组（存问答对，默认关）。两个治理开关：`--no-connect` 纯转译模式禁用查库，`--allow-write` 才允许写入。安全方面有路径穿越防护和 N+1 截断探针。
+18 个工具是 Agent 可以主动调用的函数，按用途分为四类：查询组（执行 SQL、试运行、查 Cube、dry-plan）、上下文组（取 MDL、列模型、描述模型）、知识组（取规则、召回历史、取上下文）、写入组（存问答对，默认关）。两个治理开关：`--no-connect` 纯转译模式禁用查库，`--allow-write` 才允许写入。安全方面有路径穿越防护和 N+1 截断探针。
+
+6 个资源是 Agent 可以通过 URI 直接读取的内容，属于被动可访问的数据：mdl、instructions、agent、knowledge、project。
+
+一份预置的标准操作流程（SOP），引导 Agent 按“schema → instructions → recall → dry-run → run → store”的顺序完成取数，避免跳过验证步骤或遗漏知识召回。
 
 Ask 模块解决一个实际问题：同一个问题，给弱模型和强模型的提示词应该不一样。`--guided` 给弱模型包 6 步严格 SOP，`--direct` 给强模型极简包装。**不设默认**——因为静默改默认会跨版本改变 Agent 行为，宁可报错让你二选一。
 
-SDK 方面有 wren-langchain 和 wren-pydantic 两个集成，都包装同一个 plan-and-execute pipeline，CLI 只是 Typer 外壳。
+SDK 方面有 wren-langchain 和 wren-pydantic 两个集成，都包装同一个 plan-and-execute pipeline，CLI 只是 Typer 外壳。这两个 SDK 的作用，都是把 Wren AI 准备好的语义层项目，封装成对应 Agent 框架可以直接调用的“工具集”，方便你在自己的应用里嵌入 Wren 的取数能力。
 
 ---
 
